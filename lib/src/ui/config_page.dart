@@ -98,16 +98,20 @@ class _ConfigPageState extends State<ConfigPage> {
             onPressed: () async {
               final port = int.tryParse(_portController.text);
               if (port != null) {
+                // Capture context-derived objects before async gap
+                final messenger = ScaffoldMessenger.of(context);
+                final savedL10n = AppLocalizations.of(context)!;
+
                 await service.updateConfig(
                   _hostController.text,
                   port,
                   binaryPath: _pathController.text,
                   arguments: _argsController.text,
                 );
-                if (mounted)
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l10n.save)));
+
+                if (mounted) {
+                  messenger.showSnackBar(SnackBar(content: Text(savedL10n.save)));
+                }
               }
             },
             child: Text(l10n.save),

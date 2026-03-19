@@ -84,7 +84,7 @@ class AppTheme {
       blendLevel: 0,
       subThemesData: FlexSubThemesData(
         blendOnLevel: 0,
-        useTextTheme: true,
+        useMaterial3Typography: true,
         inputDecoratorRadius: 8.0,
         navigationRailLabelType: NavigationRailLabelType.all,
         navigationRailIndicatorSchemeColor:

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:process_run/shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_theme.dart';
 
@@ -12,11 +11,18 @@ class ServiceManager extends ChangeNotifier {
   static final ServiceManager _instance = ServiceManager._internal();
   factory ServiceManager() => _instance;
   ServiceManager._internal() {
-    // Process monitoring
-    if (!kIsWeb &&
-        (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-      ProcessSignal.sigint.watch().listen((_) => stop());
-      ProcessSignal.sigterm.watch().listen((_) => stop());
+    // Process monitoring: register signal handlers where supported.
+    if (!kIsWeb) {
+      try {
+        ProcessSignal.sigint.watch().listen((_) => stop());
+      } catch (_) {}
+
+      // SIGTERM is not supported on Windows; guard with try/catch as well.
+      try {
+        if (!Platform.isWindows) {
+          ProcessSignal.sigterm.watch().listen((_) => stop());
+        }
+      } catch (_) {}
     }
   }
 

@@ -90,14 +90,31 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell>
     with TrayListener, WindowListener {
   int _selectedIndex = 0;
+  ServiceManager? _serviceManager;
+
+  void _onServiceChanged() {
+    if (!mounted) return;
+    _initTray();
+  }
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
     trayManager.addListener(this);
-    if (!Platform.isAndroid && !Platform.isIOS) {
-      _initTray();
+    // Defer tray init to didChangeDependencies where `context` and
+    // inherited widgets (localizations) are available.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_serviceManager == null) {
+      _serviceManager = context.read<ServiceManager>();
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _initTray());
+        _serviceManager!.addListener(_onServiceChanged);
+      }
     }
   }
 
@@ -157,7 +174,6 @@ class _MainShellState extends State<MainShell>
   Widget build(BuildContext context) {
     // Re-init tray when status changes to update menu (disabled states)
     context.watch<ServiceManager>();
-    _initTray();
 
     final bool isWide = MediaQuery.of(context).size.width > 900;
     final bool isPortrait =
@@ -305,6 +321,11 @@ class _MainShellState extends State<MainShell>
   void dispose() {
     windowManager.removeListener(this);
     trayManager.removeListener(this);
+    if (_serviceManager != null) {
+      try {
+        _serviceManager!.removeListener(_onServiceChanged);
+      } catch (_) {}
+    }
     super.dispose();
   }
 }

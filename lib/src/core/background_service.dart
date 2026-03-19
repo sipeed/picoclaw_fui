@@ -2,29 +2,37 @@ import 'dart:async';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
-import 'package:picoclaw_flutter_ui/src/core/service_manager.dart';
 
 Future<void> initializeBackgroundService() async {
   final service = FlutterBackgroundService();
 
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'picoclaw_foreground', 
-    'PicoClaw Service',
-    description: 'Keep the PicoClaw server running in the background.',
-    importance: Importance.low,
-  );
-
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  // In newer versions of flutter_local_notifications (21+), 
-  // we access the platform-specific implementation via specific getters or plugins.
+  // Notification channel/plug-in initialization intentionally omitted
+  // since background service plugins may manage notifications differently
+  // across platform/API versions. Keep this minimal to avoid unused-symbol
+  // analyzer warnings and version-specific API calls.
+  // For Android, create a notification channel so the foreground service
+  // can post persistent notifications. This is required for newer Android
+  // API levels and provides a consistent cross-platform experience.
   try {
     if (defaultTargetPlatform == TargetPlatform.android) {
-       // Using dynamic or broad try-catch as the API has changed significantly in v21
-       // or we skip channel creation here as background_service usually handles it
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'picoclaw_foreground',
+        'PicoClaw Service',
+        description: 'Keep the PicoClaw server running in the background.',
+        importance: Importance.low,
+      );
+
+      final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+          FlutterLocalNotificationsPlugin();
+
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
     }
-  } catch (_) {}
+  } catch (e) {
+    // Don't fail service initialization for notification errors; log if possible.
+  }
 
   await service.configure(
     androidConfiguration: AndroidConfiguration(

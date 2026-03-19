@@ -191,13 +191,17 @@ class _WebViewPageState extends State<WebViewPage> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: colorScheme.secondary.withOpacity(0.05),
+                  color: colorScheme.secondary.withAlpha(
+                    ((0.05).clamp(0.0, 1.0) * 255).round(),
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Remix.error_warning_line,
                   size: 64,
-                  color: colorScheme.secondary.withOpacity(0.5),
+                  color: colorScheme.secondary.withAlpha(
+                    ((0.5).clamp(0.0, 1.0) * 255).round(),
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -216,7 +220,9 @@ class _WebViewPageState extends State<WebViewPage> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 16,
-                  color: colorScheme.onSurface.withOpacity(0.6),
+                  color: colorScheme.onSurface.withAlpha(
+                    ((0.6).clamp(0.0, 1.0) * 255).round(),
+                  ),
                 ),
               ),
               const SizedBox(height: 48),
@@ -289,9 +295,9 @@ class _WebViewPageState extends State<WebViewPage> {
                 if (_winError)
                   Positioned.fill(
                     child: Container(
-                      color: Colors.black.withAlpha(
-                        ((0.45).clamp(0.0, 1.0) * 255).round(),
-                      ),
+                          color: Colors.black.withAlpha(
+                            ((0.45).clamp(0.0, 1.0) * 255).round(),
+                          ),
                       child: Center(
                         child: Material(
                           color: colorScheme.surface,
@@ -319,12 +325,12 @@ class _WebViewPageState extends State<WebViewPage> {
                                     const SizedBox(width: 12),
                                     ElevatedButton(
                                       onPressed: widget.onGoToDashboard,
-                                      child: const Text('Back'),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
-                                            colorScheme.surfaceVariant,
+                                            colorScheme.surfaceContainerHighest,
                                         foregroundColor: colorScheme.onSurface,
                                       ),
+                                      child: const Text('Back'),
                                     ),
                                   ],
                                 ),
@@ -354,18 +360,20 @@ class _WebViewPageState extends State<WebViewPage> {
                 ? const SizedBox()
                 : WebViewWidget(controller: _mobileController!),
           ),
-          if (_isLoading) const Center(child: CircularProgressIndicator()),
+          _isLoading ? const Center(child: CircularProgressIndicator()) : const SizedBox.shrink(),
           // 顶部操作栏
           buildWebViewActions(
             onBack: () async {
               if (_mobileController != null &&
-                  await _mobileController!.canGoBack())
+                  await _mobileController!.canGoBack()) {
                 _mobileController!.goBack();
+              }
             },
             onForward: () async {
               if (_mobileController != null &&
-                  await _mobileController!.canGoForward())
+                  await _mobileController!.canGoForward()) {
                 _mobileController!.goForward();
+              }
             },
             onReload: () => _mobileController?.reload(),
             canBack: true,
