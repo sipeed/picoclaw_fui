@@ -13,7 +13,8 @@ class ServiceManager extends ChangeNotifier {
   factory ServiceManager() => _instance;
   ServiceManager._internal() {
     // Process monitoring
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    if (!kIsWeb &&
+        (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       ProcessSignal.sigint.watch().listen((_) => stop());
       ProcessSignal.sigterm.watch().listen((_) => stop());
     }
@@ -22,15 +23,15 @@ class ServiceManager extends ChangeNotifier {
   Process? _process;
   ServiceStatus _status = ServiceStatus.stopped;
   final List<String> _logs = [];
-  
+
   ServiceStatus get status => _status;
   List<String> get logs => List.unmodifiable(_logs);
-  
+
   String _host = '127.0.0.1';
   int _port = 18800;
   String _binaryPath = '';
   String _arguments = '';
-  
+
   // Theme state
   AppThemeMode _currentThemeMode = AppThemeMode.carbon;
   AppThemeMode get currentThemeMode => _currentThemeMode;
@@ -45,11 +46,11 @@ class ServiceManager extends ChangeNotifier {
     _port = prefs.getInt('port') ?? 18800;
     _binaryPath = prefs.getString('binaryPath') ?? '';
     _arguments = prefs.getString('arguments') ?? '';
-    
+
     // Load theme
     final themeIndex = prefs.getInt('theme_mode') ?? 0;
     _currentThemeMode = AppThemeMode.values[themeIndex];
-    
+
     notifyListeners();
   }
 
@@ -60,12 +61,17 @@ class ServiceManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateConfig(String host, int port, {String? binaryPath, String? arguments}) async {
+  Future<void> updateConfig(
+    String host,
+    int port, {
+    String? binaryPath,
+    String? arguments,
+  }) async {
     _host = host;
     _port = port;
     if (binaryPath != null) _binaryPath = binaryPath;
     if (arguments != null) _arguments = arguments;
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('host', host);
     await prefs.setInt('port', port);
@@ -74,15 +80,36 @@ class ServiceManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  Timer? _notifyTimer;
+  final List<String> _pendingLogs = [];
+
   void _addLog(String log) {
-    _logs.add(log);
-    if (_logs.length > 1000) _logs.removeAt(0);
-    notifyListeners();
+    if (log.isEmpty) return;
+
+    // Split combined logs to prevent UI stutter from single large text blocks
+    final lines = log.split(RegExp(r'[\r\n]+')).where((l) => l.isNotEmpty);
+    _pendingLogs.addAll(lines.map((l) => l.trim()));
+
+    // Throttled notification: notify at most every 100ms
+    if (_notifyTimer == null || !_notifyTimer!.isActive) {
+      _notifyTimer = Timer(const Duration(milliseconds: 100), () {
+        if (_pendingLogs.isNotEmpty) {
+          _logs.addAll(_pendingLogs);
+          _pendingLogs.clear();
+
+          // Keep memory footprint low
+          if (_logs.length > 500) {
+            _logs.removeRange(0, _logs.length - 500);
+          }
+          notifyListeners();
+        }
+      });
+    }
   }
 
   Future<void> start() async {
     if (_status != ServiceStatus.stopped) return;
-    
+
     _status = ServiceStatus.starting;
     notifyListeners();
 
@@ -91,7 +118,10 @@ class ServiceManager extends ChangeNotifier {
       if (Platform.isWindows) {
         // Find and kill process by port on Windows
         try {
-          final result = await Process.run('cmd', ['/c', 'netstat -ano | findstr :$_port']);
+          final result = await Process.run('cmd', [
+            '/c',
+            'netstat -ano | findstr :$_port',
+          ]);
           if (result.stdout.toString().isNotEmpty) {
             final lines = result.stdout.toString().split('\n');
             for (var line in lines) {
@@ -99,7 +129,9 @@ class ServiceManager extends ChangeNotifier {
               if (parts.length >= 5) {
                 final pid = parts.last;
                 await Process.run('taskkill', ['/F', '/PID', pid]);
-                _addLog('Cleaned up existing process on port $_port (PID: $pid)');
+                _addLog(
+                  'Cleaned up existing process on port $_port (PID: $pid)',
+                );
               }
             }
           }
@@ -108,7 +140,7 @@ class ServiceManager extends ChangeNotifier {
         // On Android/Linux, we can't easily kill by port without root/shell.
         // However, we can try to kill by name if possible, or just re-try.
         // For Android, we primarily rely on the foreground service keeping our lifecycle synced.
-        await stop(); 
+        await stop();
       }
 
       // 2. Resolve binary path
@@ -117,28 +149,36 @@ class ServiceManager extends ChangeNotifier {
         exePath = 'picoclaw';
         if (Platform.isWindows) exePath += '.exe';
       }
-      
+
       final List<String> args = ['-port', _port.toString()];
       if (_host == '0.0.0.0') {
         args.add('-public');
       }
-      
+
       if (_arguments.isNotEmpty) {
         args.addAll(_arguments.split(' ').where((s) => s.isNotEmpty));
       }
-      
+
       _process = await Process.start(exePath, args);
-      
+
       _status = ServiceStatus.running;
       _addLog('Service started on $webUrl');
 
-      _process!.stdout.transform(utf8.decoder).listen((data) {
-        _addLog(data.trim());
-      });
+      // Use LineSplitter to efficiently handle line breaks and avoid UI blocking
+      // with large output blocks.
+      _process!.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            _addLog(line);
+          });
 
-      _process!.stderr.transform(utf8.decoder).listen((data) {
-        _addLog('ERROR: ${data.trim()}');
-      });
+      _process!.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            _addLog('ERROR: $line');
+          });
 
       _process!.exitCode.then((exitCode) {
         _status = ServiceStatus.stopped;

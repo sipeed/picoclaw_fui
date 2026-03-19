@@ -20,11 +20,13 @@ class WebViewPage extends StatefulWidget {
 
 class _WebViewPageState extends State<WebViewPage> {
   // Mobile
-  late final WebViewController? _mobileController;
-  
+  WebViewController? _mobileController;
+
   // Windows specific
-  final _winController = win_wv.WebviewController();
+  win_wv.WebviewController? _winController;
   bool _winReady = false;
+  bool _winError = false;
+  
 
   bool _isLoading = true;
 
@@ -59,10 +61,42 @@ class _WebViewPageState extends State<WebViewPage> {
 
   Future<void> _initWindowsWebView() async {
     try {
-      await _winController.initialize();
+      _winController ??= win_wv.WebviewController();
+      await _winController!.initialize();
       // Ensure it's focused on load
-      await _winController.setBackgroundColor(Colors.transparent);
-      await _winController.loadUrl(widget.url);
+      await _winController!.setBackgroundColor(Colors.transparent);
+
+      // Disable context menu via script for consistent UX
+      try {
+        await _winController!.addScriptToExecuteOnDocumentCreated(
+          "document.addEventListener('contextmenu', function(e){e.preventDefault();});",
+        );
+      } catch (_) {}
+
+      // Listen for loading state and errors to detect blank/frozen views
+      _winController!.loadingState.listen((state) {
+        if (!mounted) return;
+        if (state == win_wv.LoadingState.loading) {
+          setState(() => _isLoading = true);
+        } else if (state == win_wv.LoadingState.navigationCompleted) {
+          setState(() {
+            _isLoading = false;
+            _winReady = true;
+          });
+        }
+      });
+
+      _winController!.onLoadError.listen((err) {
+        if (!mounted) return;
+        // Mark not ready and allow user to reload
+        setState(() {
+          _isLoading = false;
+          _winReady = false;
+          _winError = true;
+        });
+      });
+
+      await _winController!.loadUrl(widget.url);
       if (mounted) {
         setState(() {
           _winReady = true;
@@ -74,11 +108,73 @@ class _WebViewPageState extends State<WebViewPage> {
     }
   }
 
+  Future<void> _reinitWindowsWebView() async {
+    try {
+      await _winController?.dispose();
+    } catch (_) {}
+    _winController = win_wv.WebviewController();
+    setState(() {
+      _winReady = false;
+      _isLoading = true;
+      _winError = false;
+    });
+    await _initWindowsWebView();
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = context.watch<ServiceManager>();
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
+
+    // 顶部操作栏按钮
+    Widget buildWebViewActions({
+      required VoidCallback? onBack,
+      required VoidCallback? onForward,
+      required VoidCallback? onReload,
+      bool canBack = true,
+      bool canForward = true,
+    }) {
+      return Container(
+        alignment: Alignment.topRight,
+        margin: const EdgeInsets.only(top: 12, right: 12),
+        child: Material(
+          color: colorScheme.surface.withAlpha(((0.7).clamp(0.0, 1.0) * 255).round()),
+          borderRadius: BorderRadius.circular(16),
+          elevation: 2,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(
+                  Remix.arrow_left_s_line,
+                  color: canBack
+                      ? colorScheme.secondary
+                      : colorScheme.onSurface.withAlpha(((0.2).clamp(0.0, 1.0) * 255).round()),
+                ),
+                tooltip: l10n.goToDashboard,
+                onPressed: canBack ? onBack : null,
+              ),
+              IconButton(
+                icon: Icon(
+                  Remix.arrow_right_s_line,
+                  color: canForward
+                      ? colorScheme.secondary
+                      : colorScheme.onSurface.withAlpha(((0.2).clamp(0.0, 1.0) * 255).round()),
+                ),
+                tooltip: l10n.goToDashboard,
+                onPressed: canForward ? onForward : null,
+              ),
+              IconButton(
+                icon: Icon(Remix.refresh_line, color: colorScheme.secondary),
+                tooltip: 'Refresh',
+                onPressed: onReload,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (service.status != ServiceStatus.running) {
       return Center(
@@ -126,13 +222,18 @@ class _WebViewPageState extends State<WebViewPage> {
                   icon: const Icon(Remix.arrow_left_line),
                   label: Text(
                     l10n.goToDashboard.toUpperCase(),
-                    style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.1),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.secondary,
                     foregroundColor: colorScheme.onSecondary,
                     padding: const EdgeInsets.symmetric(horizontal: 32),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -145,33 +246,123 @@ class _WebViewPageState extends State<WebViewPage> {
 
     // If running but controller not initialized (e.g. just started)
     if (Platform.isWindows && !_winReady && _isLoading) {
-       _initWindowsWebView();
+      _initWindowsWebView();
     }
 
     if (Platform.isWindows) {
-      return _winReady 
-          ? MouseRegion(
-              onEnter: (_) {
-                 // Try to focus WebView when mouse enters
-              },
-              child: Listener(
-                onPointerSignal: (event) {
-                  if (event is PointerScrollEvent) {
-                    // Manual focus trigger or event forwarding if needed
-                  }
-                },
-                child: win_wv.Webview(_winController),
-              ),
+      return _winReady
+          ? Stack(
+              children: [
+                // WebView 区域
+                MouseRegion(
+                  onEnter: (_) {},
+                  child: Listener(
+                    onPointerSignal: (event) {},
+                    onPointerDown: (event) {
+                      // 屏蔽右键菜单
+                      if (event.kind == PointerDeviceKind.mouse &&
+                          event.buttons == kSecondaryMouseButton) {
+                        // do nothing, just block
+                      }
+                    },
+                    child: win_wv.Webview(_winController!),
+                  ),
+                ),
+                // 顶部操作栏 (Windows 控制器没有 canGoBack/canGoForward 接口，直接调用导航方法)
+                buildWebViewActions(
+                  onBack: () {
+                    _winController?.goBack();
+                  },
+                  onForward: () {
+                    _winController?.goForward();
+                  },
+                  onReload: () => _winController?.reload(),
+                  canBack: true,
+                  canForward: true,
+                ),
+                // Error overlay
+                if (_winError)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withAlpha(((0.45).clamp(0.0, 1.0) * 255).round()),
+                      child: Center(
+                        child: Material(
+                          color: colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Web content failed to load',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: _reinitWindowsWebView,
+                                      child: const Text('Retry'),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    ElevatedButton(
+                                      onPressed: widget.onGoToDashboard,
+                                      child: const Text('Back'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: colorScheme.surfaceVariant,
+                                        foregroundColor: colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             )
           : const Center(child: CircularProgressIndicator());
     }
 
     if (Platform.isAndroid || Platform.isIOS) {
-       return Stack(
+      return Stack(
         children: [
-          WebViewWidget(controller: _mobileController!),
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator()),
+          Listener(
+            onPointerDown: (event) {
+              if (event.kind == PointerDeviceKind.mouse &&
+                  event.buttons == kSecondaryMouseButton) {
+                // 屏蔽右键菜单
+              }
+            },
+            child: _mobileController == null
+                ? const SizedBox()
+                : WebViewWidget(controller: _mobileController!),
+          ),
+          if (_isLoading) const Center(child: CircularProgressIndicator()),
+          // 顶部操作栏
+          buildWebViewActions(
+            onBack: () async {
+              if (_mobileController != null &&
+                  await _mobileController!.canGoBack())
+                _mobileController!.goBack();
+            },
+            onForward: () async {
+              if (_mobileController != null &&
+                  await _mobileController!.canGoForward())
+                _mobileController!.goForward();
+            },
+            onReload: () => _mobileController?.reload(),
+            canBack: true,
+            canForward: true,
+          ),
         ],
       );
     }

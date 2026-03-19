@@ -17,7 +17,8 @@ class DashboardPage extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Let themed scaffoldBackground show through
+      backgroundColor:
+          Colors.transparent, // Let themed scaffoldBackground show through
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -27,12 +28,12 @@ class DashboardPage extends StatelessWidget {
             elevation: 0,
             centerTitle: false,
             title: Text(
-              l10n.run.toUpperCase(), 
+              l10n.run.toUpperCase(),
               style: GoogleFonts.inter(
-                fontWeight: FontWeight.w800, 
+                fontWeight: FontWeight.w800,
                 fontSize: 24,
                 letterSpacing: -0.5,
-              )
+              ),
             ),
             actions: [
               _buildStatusIndicator(context, service.status),
@@ -40,7 +41,10 @@ class DashboardPage extends StatelessWidget {
             ],
           ),
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 32.0,
+              vertical: 24.0,
+            ),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // High-Impact Control Center
@@ -50,20 +54,25 @@ class DashboardPage extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Material(
-                          color: service.status == ServiceStatus.running 
-                              ? colorScheme.error.withOpacity(0.08)
-                              : colorScheme.secondary.withOpacity(0.12),
+                            color: service.status == ServiceStatus.running
+                              ? colorScheme.error.withAlpha(((0.08).clamp(0.0, 1.0) * 255).round())
+                              : colorScheme.secondary.withAlpha(((0.12).clamp(0.0, 1.0) * 255).round()),
                           borderRadius: BorderRadius.circular(24),
                           child: InkWell(
-                            onTap: service.status == ServiceStatus.running ? service.stop : service.start,
+                            onTap: service.status == ServiceStatus.running
+                                ? service.stop
+                                : service.start,
                             borderRadius: BorderRadius.circular(24),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 24,
+                                horizontal: 32,
+                              ),
                               decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: service.status == ServiceStatus.running 
-                                      ? colorScheme.error.withOpacity(0.2)
-                                      : colorScheme.secondary.withOpacity(0.3),
+                                    color: service.status == ServiceStatus.running
+                                      ? colorScheme.error.withAlpha(((0.2).clamp(0.0, 1.0) * 255).round())
+                                      : colorScheme.secondary.withAlpha(((0.3).clamp(0.0, 1.0) * 255).round()),
                                   width: 2,
                                 ),
                                 borderRadius: BorderRadius.circular(24),
@@ -72,18 +81,29 @@ class DashboardPage extends StatelessWidget {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    service.status == ServiceStatus.running ? Remix.stop_circle_fill : Remix.play_circle_fill,
+                                    service.status == ServiceStatus.running
+                                        ? Remix.stop_circle_fill
+                                        : Remix.play_circle_fill,
                                     size: 42,
-                                    color: service.status == ServiceStatus.running ? colorScheme.error : colorScheme.secondary,
+                                    color:
+                                        service.status == ServiceStatus.running
+                                        ? colorScheme.error
+                                        : colorScheme.secondary,
                                   ),
                                   const SizedBox(width: 20),
                                   Text(
-                                    service.status == ServiceStatus.running ? 'STOP SERVICE' : 'LAUNCH SERVICE',
+                                    service.status == ServiceStatus.running
+                                        ? 'STOP SERVICE'
+                                        : 'LAUNCH SERVICE',
                                     style: GoogleFonts.inter(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: 1.5,
-                                      color: service.status == ServiceStatus.running ? colorScheme.error : colorScheme.secondary,
+                                      color:
+                                          service.status ==
+                                              ServiceStatus.running
+                                          ? colorScheme.error
+                                          : colorScheme.secondary,
                                     ),
                                   ),
                                 ],
@@ -98,9 +118,11 @@ class DashboardPage extends StatelessWidget {
                 // Glassmorphism Status Card
                 Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.surface.withOpacity(0.4),
+                    color: colorScheme.surface.withAlpha(((0.4).clamp(0.0, 1.0) * 255).round()),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: colorScheme.onSurface.withOpacity(0.08)),
+                    border: Border.all(
+                      color: colorScheme.onSurface.withAlpha(((0.08).clamp(0.0, 1.0) * 255).round()),
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Row(
@@ -120,32 +142,39 @@ class DashboardPage extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: colorScheme.secondary.withOpacity(0.1),
+                                      color: colorScheme.secondary.withAlpha(((0.1).clamp(0.0, 1.0) * 255).round()),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Icon(Remix.link_m, color: colorScheme.secondary, size: 18),
+                                    child: Icon(
+                                      Remix.link_m,
+                                      color: colorScheme.secondary,
+                                      size: 18,
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
-                                    'ENDPOINT', 
+                                    'ENDPOINT',
                                     style: GoogleFonts.inter(
-                                      fontSize: 11, 
-                                      fontWeight: FontWeight.w700, 
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
                                       letterSpacing: 1.5,
-                                      color: colorScheme.onSurface.withOpacity(0.5)
-                                    )
+                                      color: colorScheme.onSurface.withAlpha(((0.5).clamp(0.0, 1.0) * 255).round()),
+                                    ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 16),
                               InkWell(
-                                onTap: () => launchUrl(Uri.parse(service.webUrl)),
+                                onTap: () =>
+                                    launchUrl(Uri.parse(service.webUrl)),
                                 borderRadius: BorderRadius.circular(8),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
                                   child: Text(
                                     service.webUrl,
-                                  style: GoogleFonts.firaCode(
+                                    style: GoogleFonts.firaCode(
                                       fontSize: 20,
                                       color: colorScheme.secondary,
                                       fontWeight: FontWeight.w600,
@@ -155,8 +184,11 @@ class DashboardPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                l10n.webAdmin, 
-                                style: TextStyle(color: colorScheme.onSurface.withOpacity(0.4), fontSize: 13)
+                                l10n.webAdmin,
+                                style: TextStyle(
+                                  color: colorScheme.onSurface.withAlpha(((0.4).clamp(0.0, 1.0) * 255).round()),
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
@@ -167,8 +199,12 @@ class DashboardPage extends StatelessWidget {
                         width: 160,
                         height: 180, // Fixed height instead of stretching
                         decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withOpacity(0.03),
-                          border: Border(left: BorderSide(color: colorScheme.onSurface.withOpacity(0.05))),
+                          color: colorScheme.onSurface.withAlpha(((0.03).clamp(0.0, 1.0) * 255).round()),
+                          border: Border(
+                            left: BorderSide(
+                              color: colorScheme.onSurface.withAlpha(((0.05).clamp(0.0, 1.0) * 255).round()),
+                            ),
+                          ),
                         ),
                         child: Center(
                           child: Container(
@@ -177,8 +213,12 @@ class DashboardPage extends StatelessWidget {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, spreadRadius: 5)
-                              ]
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(((0.1).clamp(0.0, 1.0) * 255).round()),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
+                                ),
+                              ],
                             ),
                             child: QrImageView(
                               data: service.webUrl,
@@ -198,31 +238,33 @@ class DashboardPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      l10n.logs.toUpperCase(), 
+                      l10n.logs.toUpperCase(),
                       style: GoogleFonts.inter(
-                        fontSize: 14, 
-                        fontWeight: FontWeight.w800, 
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
                         letterSpacing: 1.0,
-                        color: colorScheme.onSurface
-                      )
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                     const SizedBox(width: 16),
-                    Expanded(child: Divider(color: colorScheme.onSurface.withOpacity(0.1), thickness: 1)),
+                    Expanded(
+                      child: Divider(
+                          color: colorScheme.onSurface.withAlpha(((0.1).clamp(0.0, 1.0) * 255).round()),
+                          thickness: 1,
+                        ),
+                    ),
                     const SizedBox(width: 16),
                     Text(
-                      '${service.logs.length} EVENTS', 
+                      '${service.logs.length} EVENTS',
                       style: GoogleFonts.firaCode(
-                        fontSize: 10, 
-                        color: colorScheme.onSurface.withOpacity(0.4)
-                      )
+                        fontSize: 10,
+                        color: colorScheme.onSurface.withAlpha(((0.4).clamp(0.0, 1.0) * 255).round()),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
-                const SizedBox(
-                  height: 500,
-                  child: LogView(),
-                ),
+                const SizedBox(height: 500, child: LogView()),
                 const SizedBox(height: 100),
               ]),
             ),
@@ -246,41 +288,45 @@ class DashboardPage extends StatelessWidget {
         label = 'SYNCING';
         break;
       case ServiceStatus.stopped:
-        color = colorScheme.onSurface.withOpacity(0.3);
+        color = colorScheme.onSurface.withAlpha(((0.3).clamp(0.0, 1.0) * 255).round());
         label = 'IDLE';
         break;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withAlpha(((0.08).clamp(0.0, 1.0) * 255).round()),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withAlpha(((0.2).clamp(0.0, 1.0) * 255).round())),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 6, 
-            height: 6, 
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(
-              color: color, 
+              color: color,
               shape: BoxShape.circle,
               boxShadow: [
                 if (status == ServiceStatus.running)
-                  BoxShadow(color: color.withOpacity(0.6), blurRadius: 8, spreadRadius: 1)
-              ]
-            )
+                  BoxShadow(
+                    color: color.withAlpha(((0.6).clamp(0.0, 1.0) * 255).round()),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+              ],
+            ),
           ),
           const SizedBox(width: 10),
           Text(
-            label, 
+            label,
             style: GoogleFonts.inter(
-              color: color, 
-              fontWeight: FontWeight.w800, 
-              fontSize: 10, 
-              letterSpacing: 1.2
-            )
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 10,
+              letterSpacing: 1.2,
+            ),
           ),
         ],
       ),
@@ -297,6 +343,23 @@ class LogView extends StatefulWidget {
 
 class _LogViewState extends State<LogView> {
   final ScrollController _scrollController = ScrollController();
+  bool _shouldAutoScroll = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients) {
+        final position = _scrollController.position;
+        // If user scrolls up by more than 50px, disable auto-scroll
+        if (position.pixels < position.maxScrollExtent - 50) {
+          if (_shouldAutoScroll) setState(() => _shouldAutoScroll = false);
+        } else {
+          if (!_shouldAutoScroll) setState(() => _shouldAutoScroll = true);
+        }
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -304,20 +367,19 @@ class _LogViewState extends State<LogView> {
     super.dispose();
   }
 
+  void _scrollToBottom() {
+    if (_shouldAutoScroll && _scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final logs = context.select<ServiceManager, List<String>>((s) => s.logs);
     final colorScheme = Theme.of(context).colorScheme;
-    
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+
+    // Use jumpTo instead of animateTo for zero-cost positioning on every frame
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
     return Container(
       decoration: BoxDecoration(
@@ -330,15 +392,21 @@ class _LogViewState extends State<LogView> {
         child: ListView.builder(
           controller: _scrollController,
           itemCount: logs.length,
-          itemBuilder: (context, index) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2.0),
-            child: Text(
-              logs[index],
-              style: TextStyle(
-                fontFamily: GoogleFonts.firaCode().fontFamily,
-                fontSize: 12,
-                color: colorScheme.onSurfaceVariant,
-                height: 1.4,
+          addAutomaticKeepAlives:
+              false, // Performance: don't keep off-screen items alive
+          addRepaintBoundaries:
+              true, // Performance: isolate each log entry repaint
+          itemBuilder: (context, index) => RepaintBoundary(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2.0),
+              child: Text(
+                logs[index],
+                style: TextStyle(
+                  fontFamily: GoogleFonts.firaCode().fontFamily,
+                  fontSize: 12,
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
               ),
             ),
           ),

@@ -137,8 +137,8 @@ class _ConfigPageState extends State<ConfigPage> {
                         color: isSelected ? theme.colorScheme.secondary : Colors.transparent,
                         width: 2,
                       ),
-                      boxShadow: isSelected
-                          ? [BoxShadow(color: theme.colorScheme.secondary.withOpacity(0.3), blurRadius: 8, spreadRadius: 1)]
+                        boxShadow: isSelected
+                          ? [BoxShadow(color: theme.colorScheme.secondary.withAlpha(((0.3).clamp(0.0, 1.0) * 255).round()), blurRadius: 8, spreadRadius: 1)]
                           : [],
                     ),
                     child: Row(

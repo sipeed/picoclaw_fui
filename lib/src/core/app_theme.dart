@@ -97,9 +97,9 @@ class AppTheme {
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: primary,
         selectedIconTheme: IconThemeData(color: isDark ? Colors.white : Colors.white),
-        unselectedIconTheme: IconThemeData(color: (isDark ? Colors.white : Colors.white).withOpacity(0.5)),
+        unselectedIconTheme: IconThemeData(color: (isDark ? Colors.white : Colors.white).withAlpha(((0.5).clamp(0.0, 1.0) * 255).round())),
         selectedLabelTextStyle: TextStyle(color: isDark ? Colors.white : Colors.white, fontWeight: FontWeight.bold),
-        unselectedLabelTextStyle: TextStyle(color: (isDark ? Colors.white : Colors.white).withOpacity(0.5)),
+        unselectedLabelTextStyle: TextStyle(color: (isDark ? Colors.white : Colors.white).withAlpha(((0.5).clamp(0.0, 1.0) * 255).round())),
       ),
     );
   }

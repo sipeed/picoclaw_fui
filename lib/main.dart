@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flex_color_scheme/flex_color_scheme.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:animations/animations.dart';
 import 'package:picoclaw_flutter_ui/src/generated/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -108,6 +106,10 @@ class _MainShellState extends State<MainShell> with TrayListener, WindowListener
   }
 
   Future<void> _initTray() async {
+    // Capture context-derived values before any await
+    final l10n = AppLocalizations.of(context)!;
+    final service = context.read<ServiceManager>();
+
     // Standardizing on the provided .ico for Windows tray and process
     try {
       await trayManager.setIcon(
@@ -116,9 +118,6 @@ class _MainShellState extends State<MainShell> with TrayListener, WindowListener
     } catch (e) {
       debugPrint('Tray icon error: $e');
     }
-    
-    final l10n = AppLocalizations.of(context)!;
-    final service = context.read<ServiceManager>();
     
     Menu menu = Menu(
       items: [
@@ -186,12 +185,12 @@ class _MainShellState extends State<MainShell> with TrayListener, WindowListener
                 extended: false, 
                 minWidth: 104, // Slightly wider for better spacing
                 backgroundColor: Colors.transparent, 
-                indicatorColor: colorScheme.secondary.withOpacity(0.08), // Very subtle indicator
+                indicatorColor: colorScheme.secondary.withAlpha(((0.08).clamp(0.0, 1.0) * 255).round()), // Very subtle indicator
                 indicatorShape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero), 
-                unselectedIconTheme: IconThemeData(color: colorScheme.onSurface.withOpacity(0.4), size: 24),
+                unselectedIconTheme: IconThemeData(color: colorScheme.onSurface.withAlpha(((0.4).clamp(0.0, 1.0) * 255).round()), size: 24),
                 selectedIconTheme: IconThemeData(color: colorScheme.secondary, size: 24),
                 unselectedLabelTextStyle: TextStyle(
-                  color: colorScheme.onSurface.withOpacity(0.4), 
+                  color: colorScheme.onSurface.withAlpha(((0.4).clamp(0.0, 1.0) * 255).round()), 
                   fontSize: 10, 
                   letterSpacing: 1.2,
                   fontWeight: FontWeight.w500,
