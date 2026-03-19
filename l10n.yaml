@@ -1,0 +1,5 @@
+template-arbs-directory: lib/l10n
+output-localization-file: app_localizations.dart
+nullable-localization: false
+synthetic-package: false
+output-dir: lib/src/generated/l10n

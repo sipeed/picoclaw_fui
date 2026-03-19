@@ -1,0 +1,28 @@
+{
+  "@@locale": "en",
+  "appTitle": "PicoClaw UI",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "run": "Run",
+  "stop": "Stop",
+  "config": "Config",
+  "webAdmin": "Web Admin",
+  "logs": "Logs",
+  "statusRunning": "Running",
+  "statusStopped": "Stopped",
+  "settings": "Settings",
+  "address": "Address",
+  "port": "Port",
+  "save": "Save",
+  "showWindow": "Show Window",
+  "exit": "Exit",
+  "binaryPath": "Binary Path",
+  "browse": "Browse",
+  "pathError": "Invalid Path",
+  "arguments": "Arguments",
+  "argumentsHint": "e.g. config.json",
+  "notStarted": "Service Not Started",
+  "startHint": "Please start the service from the dashboard first.",
+  "goToDashboard": "Go to Dashboard"
+}
