@@ -60,16 +60,18 @@ jobs:
           # Compute short date (YYMMDD) and short commit SHA
           $date = Get-Date -Format 'yyMMdd'
           $short = git rev-parse --short=6 HEAD
-          $base = "picoclaw_fui-$date-$short"
-          Write-Output "Computed release base: $base"
-          # Write outputs for later steps and export base name
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "release_tag=$base"
-          Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_BASE=$base"
+          $base_no_prefix = "$date-$short"
+          $release_tag = "picoclaw_fui-$base_no_prefix"
+          Write-Output "Computed release base_no_prefix: $base_no_prefix"
+          # Write outputs for later steps and export base name and full tag
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "release_tag=$release_tag"
+          Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_BASE=$base_no_prefix"
+          Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_TAG=$release_tag"
 
       - name: Zip Release
         shell: powershell
         run: |
-          $dest = "${env:RELEASE_BASE}-windows-x64.zip"
+          $dest = "picoclaw_fui-${env:RELEASE_BASE}-windows-x64.zip"
           Compress-Archive -Path 'build\\windows\\x64\\runner\\Release\\*' -DestinationPath $dest -Force
 
       - name: Create GitHub Release
@@ -87,8 +89,8 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.RELEASE_BASE }}-windows-x64.zip
-          asset_name: ${{ env.RELEASE_BASE }}-windows-x64.zip
+          asset_path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
+          asset_name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
           asset_content_type: application/zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

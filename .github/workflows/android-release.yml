@@ -72,10 +72,12 @@ jobs:
         run: |
           now=$(date -u +%y%m%d)
           short=$(git rev-parse --short=6 HEAD)
-          base="picoclaw_fui-$now-$short"
-          echo "Computed release base: $base"
-          echo "release_tag=$base" >> $GITHUB_OUTPUT
-          echo "RELEASE_BASE=$base" >> $GITHUB_ENV
+          base_no_prefix="$now-$short"
+          release_tag="picoclaw_fui-$base_no_prefix"
+          echo "Computed release base_no_prefix: $base_no_prefix"
+          echo "release_tag=$release_tag" >> $GITHUB_OUTPUT
+          echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
+          echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
 
       - name: Collect and rename Android artifacts
         run: |
