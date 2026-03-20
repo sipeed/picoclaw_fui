@@ -21,11 +21,25 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Set up Android SDK (API 29)
-        uses: r0adkll/setup-android@v2
-        with:
-          api-level: 29
-          build-tools: '29.0.3'
+      - name: Install Android command-line tools and SDK components (API 29)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip wget
+          ANDROID_SDK_ROOT=$HOME/Android/Sdk
+          mkdir -p $ANDROID_SDK_ROOT
+          # Download command-line tools (Linux)
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline-tools.zip
+          unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/latest
+          mv /tmp/cmdline-tools/cmdline-tools/* $ANDROID_SDK_ROOT/cmdline-tools/latest/
+          # Expose SDK paths for this and subsequent steps
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
+          # Accept licenses and install required components
+          yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses || true
+          sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-29" "build-tools;29.0.3"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
