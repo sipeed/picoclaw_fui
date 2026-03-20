@@ -9,11 +9,11 @@ import 'package:picoclaw_flutter_ui/src/core/app_theme.dart';
 import 'package:picoclaw_flutter_ui/src/ui/dashboard_page.dart';
 import 'package:picoclaw_flutter_ui/src/ui/config_page.dart';
 import 'package:picoclaw_flutter_ui/src/ui/webview_page.dart';
-import 'package:remixicon/remixicon.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:windows_single_instance/windows_single_instance.dart';
 import 'dart:io';
+import 'package:picoclaw_flutter_ui/src/ui/widgets/adaptive_action_bar.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -175,126 +175,65 @@ class _MainShellState extends State<MainShell>
     // Re-init tray when status changes to update menu (disabled states)
     context.watch<ServiceManager>();
 
-    final bool isWide = MediaQuery.of(context).size.width > 900;
-    final bool isPortrait =
-        MediaQuery.of(context).orientation == Orientation.portrait;
+    // was previously used to decide rail vs bottom bar; handled by AdaptiveActionBar
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      body: Row(
-        children: [
-          if (isWide && !isPortrait)
-            Container(
-              decoration: BoxDecoration(color: colorScheme.surface),
-              child: NavigationRail(
-                extended: false,
-                minWidth: 104, // Slightly wider for better spacing
-                backgroundColor: Colors.transparent,
-                indicatorColor: colorScheme.secondary.withAlpha(
-                  ((0.08).clamp(0.0, 1.0) * 255).round(),
-                ), // Very subtle indicator
-                indicatorShape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
-                ),
-                unselectedIconTheme: IconThemeData(
-                  color: colorScheme.onSurface.withAlpha(
-                    ((0.4).clamp(0.0, 1.0) * 255).round(),
-                  ),
-                  size: 24,
-                ),
-                selectedIconTheme: IconThemeData(
-                  color: colorScheme.secondary,
-                  size: 24,
-                ),
-                unselectedLabelTextStyle: TextStyle(
-                  color: colorScheme.onSurface.withAlpha(
-                    ((0.4).clamp(0.0, 1.0) * 255).round(),
-                  ),
-                  fontSize: 10,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w500,
-                  height: 2.2,
-                ),
-                selectedLabelTextStyle: TextStyle(
-                  color: colorScheme.secondary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 10,
-                  letterSpacing: 1.2,
-                  height: 2.2,
-                ),
-                labelType: NavigationRailLabelType.all,
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: (idx) =>
-                    setState(() => _selectedIndex = idx),
-                leading: const SizedBox(height: 48),
-                destinations: const [
-                  NavigationRailDestination(
-                    icon: Icon(Remix.command_line), // More tech/minimal
-                    selectedIcon: Icon(Remix.command_fill),
-                    label: Text('DASHBOARD'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Remix.earth_line), // Clean world icon
-                    selectedIcon: Icon(Remix.earth_fill),
-                    label: Text('NETWORK'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(
-                      Remix.equalizer_2_line,
-                    ), // More tech setting icon
-                    selectedIcon: Icon(Remix.equalizer_2_fill),
-                    label: Text('PRESETS'),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: PageTransitionSwitcher(
-              transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
-                return SharedAxisTransition(
-                  animation: primaryAnimation,
-                  secondaryAnimation: secondaryAnimation,
-                  transitionType: SharedAxisTransitionType.vertical,
-                  child: child,
-                );
-              },
-              child: IndexedStack(
-                key: ValueKey<int>(_selectedIndex),
-                index: _selectedIndex,
-                children: [
-                  const DashboardPage(),
-                  Consumer<ServiceManager>(
-                    builder: (context, service, _) => WebViewPage(
-                      url: service.webUrl,
-                      onGoToDashboard: () => setState(() => _selectedIndex = 0),
-                    ),
-                  ),
-                  const ConfigPage(),
-                ],
-              ),
-            ),
-          ),
-        ],
+    // Build actions that mirror previous NavigationRail / NavigationBar
+    final actions = <Widget>[
+      IconButton(
+        tooltip: 'Status',
+        icon: Icon(
+          _selectedIndex == 0 ? Icons.dashboard : Icons.dashboard_outlined,
+          color: _selectedIndex == 0 ? colorScheme.secondary : null,
+        ),
+        onPressed: () => setState(() => _selectedIndex = 0),
       ),
-      bottomNavigationBar: (!isWide || isPortrait)
-          ? NavigationBar(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (idx) =>
-                  setState(() => _selectedIndex = idx),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.dashboard_outlined),
-                  selectedIcon: Icon(Icons.dashboard),
-                  label: 'Status',
+      IconButton(
+        tooltip: 'Web',
+        icon: Icon(
+          Icons.language,
+          color: _selectedIndex == 1 ? colorScheme.secondary : null,
+        ),
+        onPressed: () => setState(() => _selectedIndex = 1),
+      ),
+      IconButton(
+        tooltip: 'Settings',
+        icon: Icon(
+          Icons.settings,
+          color: _selectedIndex == 2 ? colorScheme.secondary : null,
+        ),
+        onPressed: () => setState(() => _selectedIndex = 2),
+      ),
+    ];
+
+    return Scaffold(
+      body: AdaptiveActionBar(
+        content: PageTransitionSwitcher(
+          transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+            return SharedAxisTransition(
+              animation: primaryAnimation,
+              secondaryAnimation: secondaryAnimation,
+              transitionType: SharedAxisTransitionType.vertical,
+              child: child,
+            );
+          },
+          child: IndexedStack(
+            key: ValueKey<int>(_selectedIndex),
+            index: _selectedIndex,
+            children: [
+              const DashboardPage(),
+              Consumer<ServiceManager>(
+                builder: (context, service, _) => WebViewPage(
+                  url: service.webUrl,
+                  onGoToDashboard: () => setState(() => _selectedIndex = 0),
                 ),
-                NavigationDestination(icon: Icon(Icons.language), label: 'Web'),
-                NavigationDestination(
-                  icon: Icon(Icons.settings),
-                  label: 'Settings',
-                ),
-              ],
-            )
-          : null,
+              ),
+              const ConfigPage(),
+            ],
+          ),
+        ),
+        actions: actions,
+      ),
     );
   }
 
