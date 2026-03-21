@@ -30,7 +30,9 @@ A modern cross-platform UI client for managing the `picoclaw` service. Designed 
 
 ## 🚀 Getting Started
 
-1. **Pre-requisites**: Ensure you have the `picoclaw` binary executable.
+1. **Pre-requisites**:
+   - macOS: `picoclaw` 会在构建时自动拉取并编译进 `.app`（需要本机已安装 `git` + `go`）。
+   - 其他平台：请先准备 `picoclaw` 可执行文件。
 2. **Download**: Get the latest release from the [Releases](https://github.com/sky5454/picoclaw_fultter_ui/releases) page.
 3. **Configure**: Go to the **PRESETS** tab to set your binary path and port.
 4. **Launch**: Press the **LAUNCH SERVICE** button on the dashboard.

@@ -251,8 +251,19 @@ class ServiceManager extends ChangeNotifier {
       // 2. Resolve binary path
       String exePath = _binaryPath;
       if (exePath.isEmpty) {
-        exePath = 'picoclaw';
-        if (Platform.isWindows) exePath += '.exe';
+        if (Platform.isMacOS) {
+          final appExecutable = File(Platform.resolvedExecutable);
+          final bundledBinary =
+              '${appExecutable.parent.path}${Platform.pathSeparator}picoclaw';
+          if (File(bundledBinary).existsSync()) {
+            exePath = bundledBinary;
+          } else {
+            exePath = 'picoclaw';
+          }
+        } else {
+          exePath = 'picoclaw';
+          if (Platform.isWindows) exePath += '.exe';
+        }
       }
 
       final List<String> args = ['-port', _port.toString()];

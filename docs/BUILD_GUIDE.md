@@ -19,6 +19,15 @@ sudo apt install libayatana-appindicator3-dev libgtk-3-dev pkg-config
 
 ### macOS
 - 需要在 `macos/Runner/DebugProfile.entitlements` 和 `Release.entitlements` 中添加网络权限，以便前端可以访问本地 Go 服务。
+- 已接入构建期自动编译 `picoclaw`，Xcode/Flutter 构建 `macos` 时会执行 `macos/scripts/build_picoclaw_macos.sh` 并将二进制放入 `.app/Contents/MacOS/picoclaw`。
+- 本机需要安装 `git` 与 `go`（脚本会在构建时自动检查）。
+
+#### macOS 构建脚本可选环境变量
+
+- `PICOCLAW_SOURCE_DIR`: 指定本地 `picoclaw` 源码目录（默认 `macos/.picoclaw-src`，不存在会自动 clone）。
+- `PICOCLAW_GIT_URL`: 覆盖默认仓库地址（默认 `https://github.com/sipeed/picoclaw.git`）。
+- `PICOCLAW_GIT_REF`: 指定分支/Tag/提交（默认 `main`）。
+- `PICOCLAW_SKIP_BUILD=1`: 临时跳过自动构建。
 
 ---
 
