@@ -59,15 +59,23 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: (no-op) placeholder for core fetch moved to build steps
+
       - name: Accept Android SDK licenses
         run: |
           yes | sdkmanager --licenses || true
 
-      - name: Build Android App Bundle (AAB)
-        run: flutter build appbundle --release --target-platform android-arm,android-arm64
+      - name: Build Android AAB, fetch/install core, and package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform android --arch arm64 --build-mode release --install-to-build
 
-      - name: Build Android APK (debug, installable for testing)
-        run: flutter build apk --debug
+      - name: Build Android APK (debug) and fetch/install core
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform android --arch arm64 --build-mode debug --install-to-build
 
       - name: Prepare release metadata
         id: vars
@@ -99,6 +107,8 @@ jobs:
             echo "Debug APK not found"; exit 1
           fi
 
+      # core binaries are installed into build outputs; avoid uploading app/bin
+
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
@@ -128,6 +138,8 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      
+
       - name: Locate MSBuild and add to PATH
         shell: powershell
         run: |
@@ -155,8 +167,12 @@ jobs:
           if (-not (Get-Command nuget -ErrorAction SilentlyContinue)) { choco install nuget.commandline -y }
           nuget help
 
-      - name: Build Windows release
-        run: flutter build windows --release
+      - name: Build Windows release (build + fetch/install core)
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform windows --arch x86_64 --build-mode release --install-to-build
 
       - name: Prepare release metadata
         id: vars
@@ -175,6 +191,8 @@ jobs:
         run: |
           $dest = "picoclaw_fui-${env:RELEASE_BASE}-windows-x64.zip"
           Compress-Archive -Path 'build\\windows\\x64\\runner\\Release\\*' -DestinationPath $dest -Force
+
+      # core binaries are installed into build outputs; avoid uploading app/bin
 
       - name: Upload Windows ZIP artifact
         uses: actions/upload-artifact@v4
