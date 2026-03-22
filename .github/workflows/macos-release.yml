@@ -1,0 +1,60 @@
+name: Build macOS Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Fetch/install core and build macOS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform macos --arch ${{ matrix.arch }} --build-mode release --install-to-build
+
+      - name: Package build outputs (dmg)
+        run: |
+          now=$(date -u +%y%m%d)
+          short=$(git rev-parse --short=6 $GITHUB_SHA)
+          base_no_prefix="$now-$short"
+          dest="picoclaw_fui-${base_no_prefix}-macos-${{ matrix.arch }}.dmg"
+          rm -f "$dest" || true
+          out_dir="build/macos/Build/Products/Release"
+          if [ ! -d "$out_dir" ]; then
+            echo "Release output not found"; exit 1
+          fi
+          app_path=$(find "$out_dir" -maxdepth 1 -name "*.app" -print -quit)
+          if [ -z "$app_path" ]; then
+            echo "No .app found in $out_dir"; ls -la "$out_dir" || true; exit 1
+          fi
+          stage_dir=$(mktemp -d)
+          cp -R "$app_path" "$stage_dir/"
+          hdiutil create -volname "PicoClawFUI" -srcfolder "$stage_dir" -ov -format UDZO "$dest"
+
+      - name: Upload macOS DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: picoclaw_fui-macos-${{ matrix.arch }}
+          path: picoclaw_fui-*-macos-${{ matrix.arch }}.dmg

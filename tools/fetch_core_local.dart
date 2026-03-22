@@ -442,32 +442,76 @@ Future<void> main(List<String> args) async {
     try {
       final instDir = Directory(installDest);
       await instDir.create(recursive: true);
-      // Preserve the out-dir path (typically app/bin) inside the build output
-      final relativeOut = outDir.replaceAll(RegExp(r'[\\/]+'), Platform.pathSeparator);
-      final targetDir = '${instDir.path}${Platform.pathSeparator}$relativeOut';
-      final td = Directory(targetDir);
-      await td.create(recursive: true);
-      // copy all installed names into the build output under the preserved out-dir
-      for (final n in copiedNames) {
-        final src = File(
-          '${outDir.endsWith(Platform.pathSeparator) ? outDir : outDir + Platform.pathSeparator}$n',
+      if (Platform.isMacOS) {
+        // For macOS desktop, ensure core binaries are bundled inside the .app so
+        // runtime resolution (Contents/MacOS/bin) works when distributed.
+        final apps = instDir
+            .listSync()
+            .whereType<Directory>()
+            .where((d) => d.path.toLowerCase().endsWith('.app'))
+            .toList();
+        if (apps.isEmpty) {
+          throw Exception('No .app found under install destination: ${instDir.path}');
+        }
+
+        final app = apps.first;
+        final macosBinDir = Directory(
+          '${app.path}${Platform.pathSeparator}Contents${Platform.pathSeparator}MacOS${Platform.pathSeparator}bin',
         );
-        final targetPath = '$targetDir${Platform.pathSeparator}$n';
-        if (await src.exists()) {
-          await src.copy(targetPath);
-          if (!Platform.isWindows) {
+        await macosBinDir.create(recursive: true);
+
+        for (final n in copiedNames) {
+          final src = File(
+            '${outDir.endsWith(Platform.pathSeparator) ? outDir : outDir + Platform.pathSeparator}$n',
+          );
+          final targetPath =
+              '${macosBinDir.path}${Platform.pathSeparator}$n';
+          if (await src.exists()) {
+            await src.copy(targetPath);
             try {
               await Process.run('chmod', ['+x', targetPath]);
             } catch (_) {}
           }
         }
+
+        await File(
+          '${macosBinDir.path}${Platform.pathSeparator}version.txt',
+        ).writeAsString(versionContents.toString().trim(), flush: true);
+        stdout.writeln(
+          'Copied ${copiedNames.join(', ')} into app bundle: ${macosBinDir.path}',
+        );
+      } else {
+        // Preserve the out-dir path (typically app/bin) inside the build output
+        final relativeOut =
+            outDir.replaceAll(RegExp(r'[\\/]+'), Platform.pathSeparator);
+        final targetDir = '${instDir.path}${Platform.pathSeparator}$relativeOut';
+        final td = Directory(targetDir);
+        await td.create(recursive: true);
+        // copy all installed names into the build output under the preserved out-dir
+        for (final n in copiedNames) {
+          final src = File(
+            '${outDir.endsWith(Platform.pathSeparator) ? outDir : outDir + Platform.pathSeparator}$n',
+          );
+          final targetPath = '$targetDir${Platform.pathSeparator}$n';
+          if (await src.exists()) {
+            await src.copy(targetPath);
+            if (!Platform.isWindows) {
+              try {
+                await Process.run('chmod', ['+x', targetPath]);
+              } catch (_) {}
+            }
+          }
+        }
+        // Also write version.txt next to installed binary for traceability
+        await File('${td.path}${Platform.pathSeparator}version.txt')
+            .writeAsString(
+          versionContents.toString().trim(),
+          flush: true,
+        );
+        stdout.writeln(
+          'Copied ${copiedNames.join(', ')} to build output: ${td.path}',
+        );
       }
-      // Also write version.txt next to installed binary for traceability
-      await File('${td.path}${Platform.pathSeparator}version.txt').writeAsString(
-        versionContents.toString().trim(),
-        flush: true,
-      );
-      stdout.writeln('Copied ${copiedNames.join(', ')} to build output: ${td.path}');
     } catch (e) {
       stderr.writeln('Failed to copy to install target $installDest: $e');
       exit(6);

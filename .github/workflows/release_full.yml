@@ -121,6 +121,62 @@ jobs:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
 
+  build-macos:
+    runs-on: macos-latest
+    needs: []
+    outputs:
+      release_base: ${{ steps.vars.outputs.release_base }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build macOS release (build + fetch/install core)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform macos --arch arm64 --build-mode release --install-to-build
+
+      - name: Prepare release metadata
+        id: vars
+        run: |
+          now=$(date -u +%y%m%d)
+          short=$(git rev-parse --short=6 $GITHUB_SHA)
+          base_no_prefix="$now-$short"
+          release_tag="picoclaw_fui-$base_no_prefix"
+          echo "release_base=$base_no_prefix" >> $GITHUB_OUTPUT
+          echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
+          echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
+
+      - name: Package Release (dmg)
+        run: |
+          dest="picoclaw_fui-${RELEASE_BASE}-macos-arm64.dmg"
+          rm -f "$dest" || true
+          out_dir="build/macos/Build/Products/Release"
+          if [ ! -d "$out_dir" ]; then
+            echo "Release output not found"; exit 1
+          fi
+          app_path=$(find "$out_dir" -maxdepth 1 -name "*.app" -print -quit)
+          if [ -z "$app_path" ]; then
+            echo "No .app found in $out_dir"; ls -la "$out_dir" || true; exit 1
+          fi
+          stage_dir=$(mktemp -d)
+          cp -R "$app_path" "$stage_dir/"
+          hdiutil create -volname "PicoClawFUI" -srcfolder "$stage_dir" -ov -format UDZO "$dest"
+
+      - name: Upload macOS DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
+          path: picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
+
   build-windows:
     runs-on: windows-latest
     needs: []
@@ -201,7 +257,7 @@ jobs:
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
 
   publish:
-    needs: [build-android, build-windows]
+    needs: [build-android, build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -232,5 +288,6 @@ jobs:
             picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
             picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
             picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
+            picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
