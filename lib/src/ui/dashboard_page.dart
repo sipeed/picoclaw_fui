@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:picoclaw_flutter_ui/src/core/service_manager.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -383,6 +384,7 @@ class LogView extends StatefulWidget {
 
 class _LogViewState extends State<LogView> {
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   bool _shouldAutoScroll = true;
 
   @override
@@ -404,12 +406,29 @@ class _LogViewState extends State<LogView> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   void _scrollToBottom() {
     if (_shouldAutoScroll && _scrollController.hasClients) {
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    }
+  }
+
+  void _handleDirectionalKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return;
+
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+    final isAtTop = position.pixels <= position.minScrollExtent;
+    final isAtBottom = position.pixels >= position.maxScrollExtent;
+
+    // When at top and press UP, or at bottom and press DOWN, unfocus to let parent handle it
+    if ((event.logicalKey == LogicalKeyboardKey.arrowUp && isAtTop) ||
+        (event.logicalKey == LogicalKeyboardKey.arrowDown && isAtBottom)) {
+      _focusNode.unfocus();
     }
   }
 
@@ -428,24 +447,32 @@ class _LogViewState extends State<LogView> {
         border: Border.all(color: colorScheme.outlineVariant),
       ),
       padding: const EdgeInsets.all(16),
-      child: SelectionArea(
-        child: ListView.builder(
-          controller: _scrollController,
-          itemCount: logs.length,
-          addAutomaticKeepAlives:
-              false, // Performance: don't keep off-screen items alive
-          addRepaintBoundaries:
-              true, // Performance: isolate each log entry repaint
-          itemBuilder: (context, index) => RepaintBoundary(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2.0),
-              child: Text(
-                logs[index],
-                style: TextStyle(
-                  fontFamily: GoogleFonts.firaCode().fontFamily,
-                  fontSize: 12,
-                  color: colorScheme.onSurfaceVariant,
-                  height: 1.4,
+      child: Focus(
+        focusNode: _focusNode,
+        autofocus: false,
+        onKeyEvent: (node, event) {
+          _handleDirectionalKey(event);
+          return KeyEventResult.ignored; // Let parent handle navigation
+        },
+        child: SelectionArea(
+          child: ListView.builder(
+            controller: _scrollController,
+            itemCount: logs.length,
+            addAutomaticKeepAlives:
+                false, // Performance: don't keep off-screen items alive
+            addRepaintBoundaries:
+                true, // Performance: isolate each log entry repaint
+            itemBuilder: (context, index) => RepaintBoundary(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2.0),
+                child: Text(
+                  logs[index],
+                  style: TextStyle(
+                    fontFamily: GoogleFonts.firaCode().fontFamily,
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
                 ),
               ),
             ),
