@@ -31,6 +31,10 @@ class _WebViewPageState extends State<WebViewPage> {
   StreamSubscription? _winLoadingSub;
   StreamSubscription? _winLoadErrorSub;
 
+  // Pending scroll aggregation to avoid flooding executeScript calls.
+  double _pendingScrollDy = 0.0;
+  bool _scrollScheduled = false;
+
   bool _isLoading = true;
   // Action order for draggable controls. Values: 'back','forward','reload'
   final List<String> _actionOrder = ['back', 'forward', 'reload'];
@@ -627,7 +631,7 @@ class _WebViewPageState extends State<WebViewPage> {
     // If running but controller not initialized, initialization happens
     // from initState or service events — avoid calling init from build().
 
-    if (Platform.isWindows) {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       return _winReady
           ? Stack(
               key: _webviewStackKey,
@@ -636,7 +640,34 @@ class _WebViewPageState extends State<WebViewPage> {
                 MouseRegion(
                   onEnter: (_) {},
                   child: Listener(
-                    onPointerSignal: (event) {},
+                    onPointerSignal: (event) {
+                      if (event is PointerScrollEvent &&
+                          _winController != null) {
+                        final dy = event.scrollDelta.dy;
+                        if (dy == 0.0) return;
+                        if (!_winReady) return;
+                        _pendingScrollDy += dy;
+                        if (_scrollScheduled) return;
+                        _scrollScheduled = true;
+                        final px = event.position.dx;
+                        final py = event.position.dy;
+                        Future.delayed(
+                          const Duration(milliseconds: 16),
+                          () async {
+                            final toSend = _pendingScrollDy;
+                            _pendingScrollDy = 0.0;
+                            _scrollScheduled = false;
+                            try {
+                              final js =
+                                  "(function(){try{const delta=$toSend;const px=$px;const py=$py;const dpr=window.devicePixelRatio||1;const x=px/dpr;const y=py/dpr;let el=document.elementFromPoint(x,y)||document.scrollingElement||document.documentElement;function findScrollableAncestor(e){while(e){try{const s=getComputedStyle(e);if(e.scrollHeight>e.clientHeight&&(s.overflowY==='auto'||s.overflowY==='scroll'))return e}catch(_){ } e=e.parentElement;}return null;}const anc=findScrollableAncestor(el)||document.scrollingElement||document.documentElement;try{if(anc){try{anc.scrollTop+=delta;}catch(_){ }try{const ev=new WheelEvent('wheel',{deltaY:delta,clientX:Math.round(x),clientY:Math.round(y),bubbles:true,cancelable:true});anc.dispatchEvent(ev);}catch(_){ }return 'dispatched';}return 'no-ancestor';}catch(e){return 'err:'+e.toString();}}catch(e){return 'err:'+e.toString();}})();";
+                              await _winController!.executeScript(js);
+                            } catch (e) {
+                              debugPrint('WEBVIEW-SCROLL error: $e');
+                            }
+                          },
+                        );
+                      }
+                    },
                     onPointerDown: (event) {
                       // Block right-click context menu
                       if (event.kind == PointerDeviceKind.mouse &&

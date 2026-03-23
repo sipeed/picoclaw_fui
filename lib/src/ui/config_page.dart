@@ -5,8 +5,12 @@ import 'package:provider/provider.dart';
 import 'package:picoclaw_flutter_ui/src/core/service_manager.dart';
 import 'package:picoclaw_flutter_ui/src/generated/l10n/app_localizations.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:picoclaw_flutter_ui/src/core/app_theme.dart';
+import 'package:remixicon/remixicon.dart';
 import 'package:picoclaw_flutter_ui/src/core/picoclaw_channel.dart';
+
+const String _githubRepoUrl = 'https://github.com/sipeed/picoclaw_fui';
 
 class ConfigPage extends StatefulWidget {
   const ConfigPage({super.key});
@@ -90,7 +94,22 @@ class _ConfigPageState extends State<ConfigPage> {
           // ========================
           // 服务基础配置
           // ========================
-          Text('服务配置', style: Theme.of(context).textTheme.titleLarge),
+          Row(
+            children: [
+              Text('服务配置', style: Theme.of(context).textTheme.titleLarge),
+              const Spacer(),
+              IconButton(
+                tooltip: 'GitHub',
+                icon: Icon(Remix.github_line),
+                onPressed: () async {
+                  final uri = Uri.parse(_githubRepoUrl);
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {}
+                },
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _hostController,
