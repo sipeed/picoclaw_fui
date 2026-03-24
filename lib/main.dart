@@ -154,10 +154,11 @@ class _MainShellState extends State<MainShell>
       ],
     );
     await trayManager.setContextMenu(menu);
-    // setToolTip is not supported on Linux; wrap in try/catch
-    try {
+    trayManager.setTitle(l10n.appTitle);
+    if (!Platform.isLinux) {
+      // Linux does not support tooltips, so we include the app name in the menu
       await trayManager.setToolTip(l10n.appTitle);
-    } catch (_) {}
+    }
   }
 
   @override
