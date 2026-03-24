@@ -24,7 +24,6 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
       final f = File(configuredPath!);
       if (await f.exists()) return f.path;
     }
-
     final binDir = p.join(Directory.current.path, 'app', 'bin');
     // Prefer the launcher binary when present (picoclaw-launcher / picoclaw-launcher.exe)
     final launcherCandidates = [
@@ -60,7 +59,6 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
         }
       }
     }
-
     // If not found relative to the current working directory, attempt to locate
     // the repository root (by looking for `pubspec.yaml`) and check its `app/bin`.
     Future<String?> findRepoRoot() async {
@@ -85,7 +83,6 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
       } catch (_) {}
       return null;
     }
-
     final repoRoot = await findRepoRoot();
     if (repoRoot != null) {
       final altBin = p.join(repoRoot, 'app', 'bin');
@@ -123,7 +120,6 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
       final direct = p.join(altBin, binaryName);
       if (await File(direct).exists()) return direct;
     }
-
     final exeDir = p.dirname(Platform.resolvedExecutable);
     // Check for launcher in exeDir first
     final cLauncher1 = p.join(exeDir, 'picoclaw-launcher');
@@ -231,6 +227,7 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
     if (args != null && args.isNotEmpty) {
       argsList.addAll(args.split(' ').where((s) => s.isNotEmpty));
     }
+    _appendLog('Starting with args: $argsList');
 
     try {
       // Use normal start mode so we can read stdout/stderr and observe exitCode.

@@ -43,6 +43,7 @@ class ServiceManager extends ChangeNotifier {
   int _port = 18800;
   String _binaryPath = '';
   String _arguments = '';
+  bool _publicMode = false;
 
   // Android 原生服务状态
   int _nativePid = -1;
@@ -65,6 +66,60 @@ class ServiceManager extends ChangeNotifier {
   String get webUrl => 'http://$_host:$_port';
   String get binaryPath => _binaryPath;
   String get arguments => _arguments;
+  bool get publicMode => _publicMode;
+
+  /// 获取本机可公开的网络IP，以太网优先，其次WiFi
+  Future<String?> getDeviceIpAddress() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLinkLocal: false,
+      );
+
+      String? wifiIp;
+      String? anyIp;
+      for (final interface in interfaces) {
+        final name = interface.name.toLowerCase();
+        if (name.contains('loopback') || name.contains('lo')) continue;
+
+        for (final addr in interface.addresses) {
+          final ip = addr.address;
+          if (ip.isEmpty || ip == '127.0.0.1' || ip.startsWith('169.254.')) {
+            continue;
+          }
+
+          // 保存任何有效的IP作为备选
+          anyIp ??= ip;
+
+          // 以太网优先 (支持更多命名方式)
+          if (name.contains('eth') ||
+              name.startsWith('en') ||
+              name.contains('ethernet') ||
+              name.contains('ens') || // Linux systemd 命名
+              name.contains('enp')) {
+            // Linux PCI 命名
+            return ip;
+          }
+          // WiFi次之 (支持更多命名方式)
+          if (wifiIp == null &&
+              (name.contains('wlan') ||
+                  name.contains('wifi') ||
+                  name.contains('wl') ||
+                  name.startsWith('wlp') || // Linux PCI WiFi
+                  name.startsWith('wlo'))) {
+            // Linux onboard WiFi
+            wifiIp = ip;
+          }
+        }
+      }
+
+      // 如果没有找到以太网或WiFi，返回任何可用的IP
+      return wifiIp ?? anyIp;
+    } catch (e) {
+      debugPrint('Failed to get device IP: $e');
+      return null;
+    }
+  }
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -72,6 +127,7 @@ class ServiceManager extends ChangeNotifier {
     _port = prefs.getInt('port') ?? 18800;
     _binaryPath = prefs.getString('binaryPath') ?? '';
     _arguments = prefs.getString('arguments') ?? '';
+    _publicMode = prefs.getBool('publicMode') ?? false;
 
     // Load theme
     final themeIndex = prefs.getInt('theme_mode') ?? 0;
@@ -167,6 +223,7 @@ class ServiceManager extends ChangeNotifier {
     int port, {
     String? binaryPath,
     String? arguments,
+    bool? publicMode,
   }) async {
     _host = host;
     _port = port;
@@ -176,6 +233,7 @@ class ServiceManager extends ChangeNotifier {
       if (binaryPath != null) _binaryPath = binaryPath;
     }
     if (arguments != null) _arguments = arguments;
+    if (publicMode != null) _publicMode = publicMode;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('host', host);
@@ -184,6 +242,7 @@ class ServiceManager extends ChangeNotifier {
       if (binaryPath != null) await prefs.setString('binaryPath', binaryPath);
     }
     if (arguments != null) await prefs.setString('arguments', arguments);
+    await prefs.setBool('publicMode', _publicMode);
     notifyListeners();
   }
 
@@ -219,7 +278,7 @@ class ServiceManager extends ChangeNotifier {
           _logs.addAll(_pendingLogs);
           _pendingLogs.clear();
 
-          // Keep memory footprint low
+          // Keep memory footprint low (max 500 log entries)
           if (_logs.length > 500) {
             _logs.removeRange(0, _logs.length - 500);
           }
@@ -235,10 +294,18 @@ class ServiceManager extends ChangeNotifier {
     _status = ServiceStatus.starting;
     notifyListeners();
 
+    // 构建启动参数
+    // 公共模式开启时：添加 -public，服务监听所有接口
+    // 公共模式关闭时：不传 -public，服务仅监听本地接口（默认行为）
+    String launchArgs = _arguments;
+    if (_publicMode && !launchArgs.contains('-public')) {
+      launchArgs = launchArgs.isEmpty ? '-public' : '$launchArgs -public';
+    }
+
     // Android: 通过 MethodChannel 启动原生前台服务
     if (Platform.isAndroid) {
       try {
-        final ok = await _adapter.startService(port: _port, args: _arguments);
+        final ok = await _adapter.startService(port: _port, args: launchArgs);
         _addLog('Starting PicoClaw native service...');
         // delay sync to wait for service start
         Future.delayed(const Duration(seconds: 2), () {
@@ -259,7 +326,7 @@ class ServiceManager extends ChangeNotifier {
 
     // Desktop: delegate lifecycle to adapter
     try {
-      final ok = await _adapter.startService(port: _port, args: _arguments);
+      final ok = await _adapter.startService(port: _port, args: launchArgs);
       if (ok) {
         _status = ServiceStatus.running;
         _addLog('Service started on $webUrl');

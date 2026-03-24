@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logs => 'Logs';
 
   @override
+  String get viewLogs => 'View Logs';
+
+  @override
   String get statusRunning => 'Running';
 
   @override
@@ -103,4 +106,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get coreValid => 'Core binary is valid.';
+
+  @override
+  String get publicMode => 'Public Mode';
+
+  @override
+  String get publicModeHint =>
+      'When enabled, the service allows external access and the address field will be disabled';
 }

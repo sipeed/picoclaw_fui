@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'Logs'**
   String get logs;
 
+  /// No description provided for @viewLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'View Logs'**
+  String get viewLogs;
+
   /// No description provided for @statusRunning.
   ///
   /// In en, this message translates to:

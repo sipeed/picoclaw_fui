@@ -27,6 +27,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logs => '日志';
 
   @override
+  String get viewLogs => '查看日志';
+
+  @override
   String get statusRunning => '正在运行';
 
   @override
@@ -102,4 +105,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get coreValid => '核心二进制文件有效。';
+
+  @override
+  String get publicMode => '公共模式';
+
+  @override
+  String get publicModeHint => '开启后服务将允许外部访问，地址栏将被禁用';
 }

@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logs => 'Logs';
 
   @override
+  String get viewLogs => 'View Logs';
+
+  @override
   String get statusRunning => 'Running';
 
   @override

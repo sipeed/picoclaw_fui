@@ -102,6 +102,62 @@ class AppTheme {
       useMaterial3: true,
       fontFamily: GoogleFonts.inter().fontFamily,
     ).copyWith(
+      // TV 焦点高亮样式 - 为遥控器导航提供明显的视觉反馈
+      focusColor: secondary.withAlpha(((0.3).clamp(0.0, 1.0) * 255).round()),
+      hoverColor: secondary.withAlpha(((0.15).clamp(0.0, 1.0) * 255).round()),
+      splashColor: secondary.withAlpha(((0.2).clamp(0.0, 1.0) * 255).round()),
+      highlightColor: secondary.withAlpha(
+        ((0.1).clamp(0.0, 1.0) * 255).round(),
+      ),
+      // IconButton 焦点样式
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.focused)) {
+              return secondary;
+            }
+            return null;
+          }),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.focused)) {
+              return secondary.withAlpha(((0.2).clamp(0.0, 1.0) * 255).round());
+            }
+            return null;
+          }),
+          side: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.focused)) {
+              return BorderSide(color: secondary, width: 3);
+            }
+            return null;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          padding: WidgetStateProperty.all(const EdgeInsets.all(12)),
+        ),
+      ),
+      // ElevatedButton 焦点样式
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(
+          side: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.focused)) {
+              return BorderSide(
+                color: isDark ? Colors.white : Colors.black,
+                width: 3,
+              );
+            }
+            return null;
+          }),
+          elevation: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.focused)) {
+              return 8;
+            }
+            return 2;
+          }),
+        ),
+      ),
+      // InkWell 焦点样式 - 通过 splashFactory 和主题实现
+      splashFactory: InkRipple.splashFactory,
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: primary,
         selectedIconTheme: IconThemeData(

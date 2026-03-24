@@ -9,6 +9,7 @@ import 'package:picoclaw_flutter_ui/src/core/app_theme.dart';
 import 'package:picoclaw_flutter_ui/src/ui/dashboard_page.dart';
 import 'package:picoclaw_flutter_ui/src/ui/config_page.dart';
 import 'package:picoclaw_flutter_ui/src/ui/webview_page.dart';
+import 'package:picoclaw_flutter_ui/src/ui/log_page.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:windows_single_instance/windows_single_instance.dart';
@@ -153,7 +154,10 @@ class _MainShellState extends State<MainShell>
       ],
     );
     await trayManager.setContextMenu(menu);
-    await trayManager.setToolTip(l10n.appTitle);
+    // setToolTip is not supported on Linux; wrap in try/catch
+    try {
+      await trayManager.setToolTip(l10n.appTitle);
+    } catch (_) {}
   }
 
   @override
@@ -199,12 +203,20 @@ class _MainShellState extends State<MainShell>
         onPressed: () => setState(() => _selectedIndex = 1),
       ),
       IconButton(
-        tooltip: 'Settings',
+        tooltip: 'Logs',
         icon: Icon(
-          Icons.settings,
+          _selectedIndex == 2 ? Icons.article : Icons.article_outlined,
           color: _selectedIndex == 2 ? colorScheme.secondary : null,
         ),
         onPressed: () => setState(() => _selectedIndex = 2),
+      ),
+      IconButton(
+        tooltip: 'Settings',
+        icon: Icon(
+          Icons.settings,
+          color: _selectedIndex == 3 ? colorScheme.secondary : null,
+        ),
+        onPressed: () => setState(() => _selectedIndex = 3),
       ),
     ];
 
@@ -230,6 +242,7 @@ class _MainShellState extends State<MainShell>
                   onGoToDashboard: () => setState(() => _selectedIndex = 0),
                 ),
               ),
+              const LogPage(),
               const ConfigPage(),
             ],
           ),

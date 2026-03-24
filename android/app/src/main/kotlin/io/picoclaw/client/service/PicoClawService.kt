@@ -13,7 +13,9 @@ import io.picoclaw.client.PicoClawApp
 import io.picoclaw.client.MainActivity
 import java.io.BufferedReader
 import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.util.zip.ZipFile
 
 class PicoClawService : Service() {
 
@@ -29,6 +31,7 @@ class PicoClawService : Service() {
 
         const val ACTION_START = "io.picoclaw.client.action.START"
         const val ACTION_STOP = "io.picoclaw.client.action.STOP"
+        const val EXTRA_PUBLIC_MODE = "public_mode"
 
         // 共享状态供 UI 读取
         @Volatile
@@ -43,9 +46,10 @@ class PicoClawService : Service() {
         var processId: Int = -1
             private set
 
-        fun start(context: Context) {
+        fun start(context: Context, publicMode: Boolean = false) {
             val intent = Intent(context, PicoClawService::class.java).apply {
                 action = ACTION_START
+                putExtra(EXTRA_PUBLIC_MODE, publicMode)
             }
             context.startForegroundService(intent)
         }
@@ -67,6 +71,8 @@ class PicoClawService : Service() {
     private val serviceLock = Object() // 保护启动/停止并发
     @Volatile
     private var stopped = false // 用于通知运行中的线程应该停止
+    @Volatile
+    private var publicMode = false // 是否启用公共模式（监听所有接口）
     private var restartCount = 0
     private val maxRestartAttempts = 3 // 最大重启次数
 
@@ -86,6 +92,8 @@ class PicoClawService : Service() {
                 return START_NOT_STICKY
             }
             else -> {
+                // 从 Intent 读取 publicMode 参数
+                publicMode = intent?.getBooleanExtra(EXTRA_PUBLIC_MODE, false) ?: false
                 startForeground(NOTIFICATION_ID, createNotification("Starting..."))
                 acquireWakeLock()
                 startService()
@@ -165,38 +173,58 @@ class PicoClawService : Service() {
 
     /**
      * 从 app 的 native library 目录获取 gateway 二进制（用于 onboard 初始化和传递给 web 服务）
+     * 如果 nativeLibraryDir 中没有，尝试从 APK 中提取
      */
     private fun getGatewayBinaryFile(): File {
         val nativeLibDir = applicationInfo.nativeLibraryDir
         val binaryFile = File(nativeLibDir, GATEWAY_BINARY_NAME)
 
-        if (!binaryFile.exists()) {
-            throw RuntimeException(
-                "picoclaw binary not found at ${binaryFile.absolutePath}. " +
-                "Ensure libpicoclaw.so is placed in jniLibs/arm64-v8a/"
-            )
+        if (binaryFile.exists()) {
+            Log.i(TAG, "Using gateway binary from nativeLibraryDir: ${binaryFile.absolutePath}")
+            return binaryFile
         }
 
-        Log.i(TAG, "Using gateway binary at ${binaryFile.absolutePath}")
-        return binaryFile
+        // 尝试从 APK 中提取
+        Log.w(TAG, "Binary not found in nativeLibraryDir, trying to extract from APK")
+        val extractedFile = extractBinaryFromApk(GATEWAY_BINARY_NAME)
+        if (extractedFile != null) {
+            Log.i(TAG, "Using extracted gateway binary: ${extractedFile.absolutePath}")
+            return extractedFile
+        }
+
+        throw RuntimeException(
+            "picoclaw binary not found. " +
+            "Tried: ${binaryFile.absolutePath} and APK extraction. " +
+            "Ensure libpicoclaw.so is placed in jniLibs/arm64-v8a/"
+        )
     }
 
     /**
      * 从 app 的 native library 目录获取 web console 二进制
+     * 如果 nativeLibraryDir 中没有，尝试从 APK 中提取
      */
     private fun getWebBinaryFile(): File {
         val nativeLibDir = applicationInfo.nativeLibraryDir
         val binaryFile = File(nativeLibDir, WEB_BINARY_NAME)
 
-        if (!binaryFile.exists()) {
-            throw RuntimeException(
-                "picoclaw-web binary not found at ${binaryFile.absolutePath}. " +
-                "Ensure libpicoclaw-web.so is placed in jniLibs/arm64-v8a/"
-            )
+        if (binaryFile.exists()) {
+            Log.i(TAG, "Using web binary from nativeLibraryDir: ${binaryFile.absolutePath}")
+            return binaryFile
         }
 
-        Log.i(TAG, "Using web binary at ${binaryFile.absolutePath}")
-        return binaryFile
+        // 尝试从 APK 中提取
+        Log.w(TAG, "Web binary not found in nativeLibraryDir, trying to extract from APK")
+        val extractedFile = extractBinaryFromApk(WEB_BINARY_NAME)
+        if (extractedFile != null) {
+            Log.i(TAG, "Using extracted web binary: ${extractedFile.absolutePath}")
+            return extractedFile
+        }
+
+        throw RuntimeException(
+            "picoclaw-web binary not found. " +
+            "Tried: ${binaryFile.absolutePath} and APK extraction. " +
+            "Ensure libpicoclaw-web.so is placed in jniLibs/arm64-v8a/"
+        )
     }
 
     /**
@@ -280,13 +308,23 @@ class PicoClawService : Service() {
         val configFile = File(filesDir, "picoclaw/config.json")
         val env = buildEnvironment()
 
-        val pb = ProcessBuilder(
+        val cmdList = mutableListOf(
             webBinaryFile.absolutePath,
             "--console",
-            "--no-browser",
-            "--port", WEB_PORT.toString(),
-            configFile.absolutePath
+            "--no-browser"
         )
+        
+        // 只有在公共模式开启时才添加 -public 参数
+        if (publicMode) {
+            cmdList.add("-public")
+            Log.i(TAG, "Public mode enabled, adding -public flag")
+        } else {
+            Log.i(TAG, "Public mode disabled, service will listen on localhost only")
+        }
+        
+        cmdList.addAll(listOf("-port", WEB_PORT.toString(), configFile.absolutePath))
+        
+        val pb = ProcessBuilder(cmdList)
             .directory(filesDir)
             .redirectErrorStream(true)
 
@@ -375,6 +413,50 @@ class PicoClawService : Service() {
                 return
             }
             runWebService()
+        }
+    }
+
+    /**
+     * 从 APK 中提取二进制文件到 filesDir
+     * 用于某些设备（特别是 TV）so 文件没有被自动解压到 nativeLibraryDir 的情况
+     */
+    private fun extractBinaryFromApk(binaryName: String): File? {
+        try {
+            val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
+            val zipEntryPath = "lib/$abi/$binaryName"
+            val outputFile = File(filesDir, binaryName)
+
+            // 如果已经提取过了，直接返回
+            if (outputFile.exists() && outputFile.canExecute()) {
+                Log.i(TAG, "Using cached binary: ${outputFile.absolutePath}")
+                return outputFile
+            }
+
+            // 获取 APK 路径
+            val apkPath = applicationInfo.sourceDir
+            Log.i(TAG, "Extracting $binaryName from APK: $apkPath (entry: $zipEntryPath)")
+
+            ZipFile(apkPath).use { zipFile ->
+                val entry = zipFile.getEntry(zipEntryPath)
+                    ?: zipFile.getEntry("lib/arm64-v8a/$binaryName")
+                    ?: zipFile.getEntry("lib/armeabi-v7a/$binaryName")
+                    ?: return null
+
+                zipFile.getInputStream(entry).use { input ->
+                    FileOutputStream(outputFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+
+            // 设置可执行权限
+            outputFile.setExecutable(true)
+            Log.i(TAG, "Successfully extracted $binaryName to ${outputFile.absolutePath}")
+            return outputFile
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to extract $binaryName from APK", e)
+            return null
         }
     }
 
@@ -495,8 +577,13 @@ class PicoClawService : Service() {
         val tmpDir = File(cacheDir, "tmp")
         tmpDir.mkdirs()
 
-        val nativeLibDir = applicationInfo.nativeLibraryDir
-        val gatewayBinaryPath = File(nativeLibDir, GATEWAY_BINARY_NAME).absolutePath
+        // 使用 getGatewayBinaryFile() 确保获取正确的路径（包括从 APK 提取的情况）
+        val gatewayBinaryPath = try {
+            getGatewayBinaryFile().absolutePath
+        } catch (e: Exception) {
+            // 如果获取失败，使用默认路径
+            File(applicationInfo.nativeLibraryDir, GATEWAY_BINARY_NAME).absolutePath
+        }
         val configPath = File(picoHome, "config.json").absolutePath
 
         return mapOf(

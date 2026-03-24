@@ -6,6 +6,7 @@
   "config": "配置",
   "webAdmin": "后台管理",
   "logs": "日志",
+  "viewLogs": "查看日志",
   "statusRunning": "正在运行",
   "statusStopped": "已停止",
   "settings": "设置",
@@ -33,6 +34,8 @@
   "coreInvalidBinary": "核心二进制文件无效。",
   "coreUnknownError": "未知的核心错误：{code}",
   "coreValid": "核心二进制文件有效。",
+  "publicMode": "公共模式",
+  "publicModeHint": "开启后服务将允许外部访问，地址栏将被禁用",
   "@coreUnknownError": {
     "placeholders": {
       "code": {}

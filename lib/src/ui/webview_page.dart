@@ -5,6 +5,7 @@ import 'package:picoclaw_flutter_ui/src/core/service_manager.dart';
 import 'package:picoclaw_flutter_ui/src/generated/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:remixicon/remixicon.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart' as win_wv;
 import 'dart:io';
@@ -57,84 +58,55 @@ class _WebViewPageState extends State<WebViewPage> {
     }
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final service = context.read<ServiceManager>();
+    // Initialize controllers if service becomes running and controllers are not initialized yet
+    if (service.status == ServiceStatus.running) {
+      if (Platform.isAndroid || Platform.isIOS) {
+        if (_mobileController == null) {
+          _initControllers();
+        }
+      } else if (Platform.isWindows) {
+        if (_winController == null) {
+          _initControllers();
+        }
+      }
+    }
+  }
+
   void _initControllers() {
     if (Platform.isAndroid || Platform.isIOS) {
       _mobileController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(Colors.white)
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageStarted: (String url) {
               setState(() => _isLoading = true);
             },
             onProgress: (int progress) {
-              // keep loading indicator while progress < 100
               if (progress < 100) {
                 setState(() => _isLoading = true);
               }
             },
             onPageFinished: (String url) async {
-              // Basic finished event may fire before meaningful render.
-              // Probe page state using JS to detect empty/blank content.
-              try {
-                final ready = await _mobileController!
-                    .runJavaScriptReturningResult('document.readyState');
-                final bodyLen = await _mobileController!
-                    .runJavaScriptReturningResult(
-                      'document.body ? document.body.innerText.length : 0',
-                    );
-                // runJavaScriptReturningResult may return a quoted string, normalize it
-                String readyStr = ready.toString();
-                readyStr = readyStr.replaceAll('"', '');
-                final len =
-                    int.tryParse(bodyLen.toString().replaceAll('"', '')) ?? 0;
-                debugPrint(
-                  'WebView finished: ready=$readyStr bodyLen=$len url=$url',
-                );
-                if (len == 0 || readyStr != 'complete') {
-                  // keep showing loading state briefly and attempt a secondary check
-                  setState(() {
-                    _isLoading = true;
-                  });
-                  Future.delayed(const Duration(milliseconds: 300), () async {
-                    try {
-                      final len2 =
-                          int.tryParse(
-                            (await _mobileController!.runJavaScriptReturningResult(
-                              'document.body ? document.body.innerText.length : 0',
-                            )).toString().replaceAll('"', ''),
-                          ) ??
-                          0;
-                      debugPrint('WebView second check bodyLen=$len2');
-                      if (mounted) {
-                        setState(() => _isLoading = len2 == 0);
-                      }
-                    } catch (_) {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
-                      }
-                    }
-                  });
-                } else {
-                  if (mounted) {
-                    setState(() => _isLoading = false);
-                  }
-                }
-              } catch (e) {
-                debugPrint('Error probing webview JS: $e');
-                if (mounted) {
-                  setState(() => _isLoading = false);
-                }
+              if (mounted) {
+                setState(() => _isLoading = false);
               }
             },
             onWebResourceError: (err) {
-              debugPrint('WebView resource error: ${err.description}');
               if (mounted) {
                 setState(() => _isLoading = false);
               }
             },
           ),
-        )
-        ..loadRequest(Uri.parse(widget.url));
+        );
+
+      // Load the URL, replacing 0.0.0.0 with 127.0.0.1 for local access
+      final targetUrl = widget.url.replaceFirst('0.0.0.0', '127.0.0.1');
+      _mobileController!.loadRequest(Uri.parse(targetUrl));
     } else if (Platform.isWindows) {
       _initWindowsWebView();
     }
@@ -180,9 +152,6 @@ class _WebViewPageState extends State<WebViewPage> {
                     (bodyLenRaw ?? '0').toString().replaceAll('"', ''),
                   ) ??
                   0;
-              debugPrint(
-                'WinWebView navigationCompleted ready=$readyStr bodyLen=$len',
-              );
               if (mounted) {
                 setState(() {
                   _isLoading = false;
@@ -192,21 +161,14 @@ class _WebViewPageState extends State<WebViewPage> {
               // Track consecutive blank observations and attempt recovery
               if (len == 0) {
                 _winBlankCount++;
-                debugPrint('WinWebView blank observed count=$_winBlankCount');
                 // First, try a soft recovery by reloading
                 if (_winBlankCount >= 2) {
-                  debugPrint(
-                    'WinWebView blank — attempting reload (count=$_winBlankCount)',
-                  );
                   try {
                     await _winController?.reload();
                   } catch (_) {}
                 }
                 // If reload didn't help after several tries, fully reinit the controller
                 if (_winBlankCount >= 4) {
-                  debugPrint(
-                    'WinWebView persistent blank — reinitializing controller',
-                  );
                   if (mounted) {
                     await _reinitWindowsWebView();
                   }
@@ -223,7 +185,6 @@ class _WebViewPageState extends State<WebViewPage> {
                           )).toString().replaceAll('"', ''),
                         ) ??
                         0;
-                    debugPrint('WinWebView delayed check bodyLen=$len2');
                     if (mounted) {
                       if (len2 > 0) {
                         _winBlankCount = 0;
@@ -236,7 +197,6 @@ class _WebViewPageState extends State<WebViewPage> {
                 _winBlankCount = 0;
               }
             } catch (e) {
-              debugPrint('Error executing script on Win WebView: $e');
               if (mounted) {
                 setState(() {
                   _isLoading = false;
@@ -631,7 +591,8 @@ class _WebViewPageState extends State<WebViewPage> {
     // If running but controller not initialized, initialization happens
     // from initState or service events — avoid calling init from build().
 
-    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    // Windows: use webview_windows package
+    if (Platform.isWindows) {
       return _winReady
           ? Stack(
               key: _webviewStackKey,
@@ -662,7 +623,7 @@ class _WebViewPageState extends State<WebViewPage> {
                                   "(function(){try{const delta=$toSend;const px=$px;const py=$py;const dpr=window.devicePixelRatio||1;const x=px/dpr;const y=py/dpr;let el=document.elementFromPoint(x,y)||document.scrollingElement||document.documentElement;function findScrollableAncestor(e){while(e){try{const s=getComputedStyle(e);if(e.scrollHeight>e.clientHeight&&(s.overflowY==='auto'||s.overflowY==='scroll'))return e}catch(_){ } e=e.parentElement;}return null;}const anc=findScrollableAncestor(el)||document.scrollingElement||document.documentElement;try{if(anc){try{anc.scrollTop+=delta;}catch(_){ }try{const ev=new WheelEvent('wheel',{deltaY:delta,clientX:Math.round(x),clientY:Math.round(y),bubbles:true,cancelable:true});anc.dispatchEvent(ev);}catch(_){ }return 'dispatched';}return 'no-ancestor';}catch(e){return 'err:'+e.toString();}}catch(e){return 'err:'+e.toString();}})();";
                               await _winController!.executeScript(js);
                             } catch (e) {
-                              debugPrint('WEBVIEW-SCROLL error: $e');
+                              // ignore: avoid_print
                             }
                           },
                         );
@@ -745,23 +706,130 @@ class _WebViewPageState extends State<WebViewPage> {
           : const Center(child: CircularProgressIndicator());
     }
 
+    // macOS and Linux: embedded WebView not yet supported, open in external browser
+    if (Platform.isMacOS || Platform.isLinux) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: colorScheme.secondary.withAlpha(
+                    ((0.05).clamp(0.0, 1.0) * 255).round(),
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Remix.computer_line,
+                  size: 64,
+                  color: colorScheme.secondary.withAlpha(
+                    ((0.5).clamp(0.0, 1.0) * 255).round(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Text(
+                'External Browser Required'.toUpperCase(),
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Embedded WebView is not supported on ${Platform.isMacOS ? 'macOS' : 'Linux'} yet. Please use the external admin panel.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: colorScheme.onSurface.withAlpha(
+                    ((0.6).clamp(0.0, 1.0) * 255).round(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 48),
+              SizedBox(
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () => launchUrl(Uri.parse(widget.url)),
+                  icon: const Icon(Remix.external_link_line),
+                  label: Text(
+                    'Open Admin Panel'.toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.secondary,
+                    foregroundColor: colorScheme.onSecondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: widget.onGoToDashboard,
+                child: Text(l10n.goToDashboard),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (Platform.isAndroid || Platform.isIOS) {
       return Stack(
         key: _webviewStackKey,
+        fit: StackFit.expand,
         children: [
-          Listener(
-            onPointerDown: (event) {
-              if (event.kind == PointerDeviceKind.mouse &&
-                  event.buttons == kSecondaryMouseButton) {
-                // Block right-click context menu
-              }
-            },
-            child: _mobileController == null
-                ? const SizedBox()
-                : WebViewWidget(controller: _mobileController!),
+          Container(
+            color: Colors.white,
+            width: double.infinity,
+            height: double.infinity,
+            child: Listener(
+              onPointerDown: (event) {
+                if (event.kind == PointerDeviceKind.mouse &&
+                    event.buttons == kSecondaryMouseButton) {
+                  // Block right-click context menu
+                }
+              },
+              child: _mobileController == null
+                  ? Container(
+                      color: Colors.grey[200],
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.web, size: 48, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text('Initializing WebView...'),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SizedBox.expand(
+                      child: WebViewWidget(controller: _mobileController!),
+                    ),
+            ),
           ),
           _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? Container(
+                  color: Colors.black.withAlpha((0.1 * 255).round()),
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: const Center(child: CircularProgressIndicator()),
+                )
               : const SizedBox.shrink(),
           // Top action bar
           buildWebViewActions(

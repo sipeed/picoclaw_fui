@@ -6,8 +6,11 @@ class PicoClawChannel {
   static const _channel = MethodChannel('io.picoclaw.client/picoclaw');
 
   /// 启动 PicoClaw 前台服务
-  static Future<bool> startService() async {
-    final result = await _channel.invokeMethod<bool>('startService');
+  static Future<bool> startService({int port = 18800, String args = ''}) async {
+    final result = await _channel.invokeMethod<bool>('startService', {
+      'port': port,
+      'args': args,
+    });
     return result ?? false;
   }
 
@@ -41,10 +44,9 @@ class PicoClawChannel {
 
   /// 保存 config.json 内容
   static Future<bool> saveConfig(String content) async {
-    final result = await _channel.invokeMethod<bool>(
-      'saveConfig',
-      {'content': content},
-    );
+    final result = await _channel.invokeMethod<bool>('saveConfig', {
+      'content': content,
+    });
     return result ?? false;
   }
 
@@ -56,10 +58,9 @@ class PicoClawChannel {
 
   /// 设置开机自启
   static Future<bool> setAutoStart(bool enabled) async {
-    final result = await _channel.invokeMethod<bool>(
-      'setAutoStart',
-      {'enabled': enabled},
-    );
+    final result = await _channel.invokeMethod<bool>('setAutoStart', {
+      'enabled': enabled,
+    });
     return result ?? false;
   }
 

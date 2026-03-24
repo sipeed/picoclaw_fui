@@ -27,6 +27,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logs => '日志';
 
   @override
+  String get viewLogs => '查看日志';
+
+  @override
   String get statusRunning => '正在运行';
 
   @override

@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'Logs'**
   String get logs;
 
+  /// No description provided for @viewLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'View Logs'**
+  String get viewLogs;
+
   /// No description provided for @statusRunning.
   ///
   /// In en, this message translates to:
@@ -283,6 +289,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Core binary is valid.'**
   String get coreValid;
+
+  /// No description provided for @publicMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Public Mode'**
+  String get publicMode;
+
+  /// No description provided for @publicModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, the service allows external access and the address field will be disabled'**
+  String get publicModeHint;
 }
 
 class _AppLocalizationsDelegate

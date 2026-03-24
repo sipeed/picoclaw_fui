@@ -9,6 +9,7 @@
   "config": "Config",
   "webAdmin": "Web Admin",
   "logs": "Logs",
+  "viewLogs": "View Logs",
   "statusRunning": "Running",
   "statusStopped": "Stopped",
   "settings": "Settings",
@@ -36,6 +37,8 @@
   "coreInvalidBinary": "Invalid core binary file.",
   "coreUnknownError": "Unknown core error: {code}",
   "coreValid": "Core binary is valid.",
+  "publicMode": "Public Mode",
+  "publicModeHint": "When enabled, the service allows external access and the address field will be disabled",
   "@coreUnknownError": {
     "placeholders": {
       "code": {}

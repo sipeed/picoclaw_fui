@@ -43,10 +43,25 @@ class PicoClawMethodChannel(
             when (call.method) {
                 "startService" -> {
                     try {
-                        PicoClawService.start(context)
+                        // 从参数中读取 publicMode，默认为 false
+                        val args = call.argument<String>("args") ?: ""
+                        val publicMode = args.contains("-public")
+                        // 保存 publicMode 到 SharedPreferences
+                        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                        prefs.edit().putBoolean("public_mode", publicMode).apply()
+                        Log.d(TAG, "Starting service with publicMode=$publicMode (args: $args)")
+                        PicoClawService.start(context, publicMode)
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("START_FAILED", e.message, null)
+                    }
+                }
+                "getPublicMode" -> {
+                    try {
+                        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                        result.success(prefs.getBoolean("public_mode", false))
+                    } catch (e: Exception) {
+                        result.error("GET_PUBLIC_MODE_FAILED", e.message, null)
                     }
                 }
                 "stopService" -> {
