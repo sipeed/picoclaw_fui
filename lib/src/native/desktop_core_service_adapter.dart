@@ -126,6 +126,14 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
     final cLauncher2 = p.join(exeDir, 'picoclaw-launcher.exe');
     if (await File(cLauncher1).exists()) return cLauncher1;
     if (await File(cLauncher2).exists()) return cLauncher2;
+    if (Platform.isMacOS) {
+      // On macOS, the distributed .app bundle commonly stores bundled binaries
+      // under Contents/MacOS/bin. Prefer launcher there before falling back.
+      final cLauncherBin1 = p.join(exeDir, 'bin', 'picoclaw-launcher');
+      final cLauncherBin2 = p.join(exeDir, 'bin', 'picoclaw-launcher.exe');
+      if (await File(cLauncherBin1).exists()) return cLauncherBin1;
+      if (await File(cLauncherBin2).exists()) return cLauncherBin2;
+    }
     final c1 = p.join(exeDir, binaryName);
     if (await File(c1).exists()) return c1;
     final c2 = p.join(exeDir, 'bin', binaryName);
