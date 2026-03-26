@@ -1,4 +1,4 @@
-package io.picoclaw.client
+package com.sipeed.picoclaw
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

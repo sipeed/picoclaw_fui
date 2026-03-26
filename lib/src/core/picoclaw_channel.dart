@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 /// PicoClaw 原生 MethodChannel 客户端。
 /// 仅在 Android 平台可用，用于与 Kotlin 原生服务层通信。
 class PicoClawChannel {
-  static const _channel = MethodChannel('io.picoclaw.client/picoclaw');
+  static const _channel = MethodChannel('com.sipeed.picoclaw/picoclaw');
 
   /// 启动 PicoClaw 前台服务
   static Future<bool> startService({int port = 18800, String args = ''}) async {

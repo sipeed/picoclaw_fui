@@ -1,4 +1,4 @@
-package io.picoclaw.client.service
+package com.sipeed.picoclaw.service
 
 import android.app.Notification
 import android.app.PendingIntent
@@ -9,8 +9,8 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import io.picoclaw.client.PicoClawApp
-import io.picoclaw.client.MainActivity
+import com.sipeed.picoclaw.PicoClawApp
+import com.sipeed.picoclaw.MainActivity
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
@@ -29,8 +29,8 @@ class PicoClawService : Service() {
         // 本地 Pico Channel 认证 token（仅用于 loopback 通信）
         const val PICO_TOKEN = "picoclaw-android-local"
 
-        const val ACTION_START = "io.picoclaw.client.action.START"
-        const val ACTION_STOP = "io.picoclaw.client.action.STOP"
+        const val ACTION_START = "com.sipeed.picoclaw.action.START"
+        const val ACTION_STOP = "com.sipeed.picoclaw.action.STOP"
         const val EXTRA_PUBLIC_MODE = "public_mode"
 
         // 共享状态供 UI 读取
@@ -313,7 +313,7 @@ class PicoClawService : Service() {
             "--console",
             "--no-browser"
         )
-        
+
         // 只有在公共模式开启时才添加 -public 参数
         if (publicMode) {
             cmdList.add("-public")
@@ -321,9 +321,9 @@ class PicoClawService : Service() {
         } else {
             Log.i(TAG, "Public mode disabled, service will listen on localhost only")
         }
-        
+
         cmdList.addAll(listOf("-port", WEB_PORT.toString(), configFile.absolutePath))
-        
+
         val pb = ProcessBuilder(cmdList)
             .directory(filesDir)
             .redirectErrorStream(true)

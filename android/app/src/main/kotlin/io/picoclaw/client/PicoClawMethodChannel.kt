@@ -1,12 +1,12 @@
-package io.picoclaw.client
+package com.sipeed.picoclaw
 
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import io.picoclaw.client.service.PicoClawService
-import io.picoclaw.client.util.HealthChecker
+import com.sipeed.picoclaw.service.PicoClawService
+import com.sipeed.picoclaw.util.HealthChecker
 import java.io.File
 
 /**
@@ -30,7 +30,7 @@ class PicoClawMethodChannel(
 ) {
     companion object {
         private const val TAG = "PicoClawMethodChannel"
-        private const val CHANNEL_NAME = "io.picoclaw.client/picoclaw"
+        private const val CHANNEL_NAME = "com.sipeed.picoclaw/picoclaw"
         private const val PREF_NAME = "picoclaw_prefs"
         private const val KEY_AUTO_START = "auto_start"
     }
