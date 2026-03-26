@@ -51,6 +51,7 @@ jobs:
           fi
           stage_dir=$(mktemp -d)
           cp -R "$app_path" "$stage_dir/"
+          ln -s /Applications "$stage_dir/Applications"
           hdiutil create -volname "PicoClawFUI" -srcfolder "$stage_dir" -ov -format UDZO "$dest"
 
       - name: Upload macOS DMG artifact
