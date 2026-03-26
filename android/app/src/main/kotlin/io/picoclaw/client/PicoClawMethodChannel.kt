@@ -35,6 +35,30 @@ class PicoClawMethodChannel(
         private const val KEY_AUTO_START = "auto_start"
     }
 
+    // Copy a content:// URI to the app cache and return the absolute file path.
+    private fun copyContentUriToCache(uriStr: String, fileName: String): String? {
+        try {
+            if (uriStr.isBlank()) return null
+            val uri = android.net.Uri.parse(uriStr)
+            val resolver = context.contentResolver
+            resolver.openInputStream(uri).use { input ->
+                if (input == null) return null
+                val cacheDir = context.cacheDir
+                val outFile = java.io.File(cacheDir, fileName)
+                input.use { inp ->
+                    outFile.outputStream().use { out ->
+                        inp.copyTo(out)
+                        out.flush()
+                    }
+                }
+                return outFile.absolutePath
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "copyContentUriToCache failed: ${e.message}")
+            return null
+        }
+    }
+
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
     private val healthChecker = HealthChecker()
 
@@ -154,6 +178,32 @@ class PicoClawMethodChannel(
                 "getWebPort" -> {
                     result.success(18800)
                 }
+                "saveToDownloads" -> {
+                    // args: filename: String, bytes: Uint8List
+                    try {
+                        val filename = call.argument<String>("filename") ?: "picoclaw_logs.txt"
+                        val bytes = call.argument<ByteArray>("bytes")
+                        if (bytes == null) {
+                            result.error("NO_BYTES", "No bytes provided", null)
+                            return@setMethodCallHandler
+                        }
+
+                        val savedUriStr = saveToDownloads(filename, bytes)
+                        result.success(savedUriStr)
+                    } catch (e: Exception) {
+                        result.error("SAVE_FAILED", e.message, null)
+                    }
+                }
+                "copyContentUriToCache" -> {
+                    try {
+                        val uriStr = call.argument<String>("uri") ?: ""
+                        val name = call.argument<String>("filename") ?: "picoclaw_logs.txt"
+                        val path = copyContentUriToCache(uriStr, name)
+                        result.success(path)
+                    } catch (e: Exception) {
+                        result.error("COPY_FAILED", e.message, null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -163,5 +213,40 @@ class PicoClawMethodChannel(
 
     fun dispose() {
         channel.setMethodCallHandler(null)
+    }
+
+    // Save bytes to Downloads using MediaStore (preferred for Android Q+).
+    private fun saveToDownloads(fileName: String, data: ByteArray): String? {
+        try {
+            val resolver = context.contentResolver
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+                // Place in Downloads directory under Pictures (app-specific folder not required)
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+            }
+
+            val uri = resolver.insert(android.provider.MediaStore.Downloads.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY), values)
+                ?: return null
+
+            resolver.openOutputStream(uri).use { out ->
+                out?.write(data)
+                out?.flush()
+            }
+
+            return uri.toString()
+        } catch (e: Exception) {
+            // For older devices, attempt fallback to legacy external storage path
+            try {
+                val downloads = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                val dir = java.io.File(downloads, "picoclaw")
+                if (!dir.exists()) dir.mkdirs()
+                val f = java.io.File(dir, fileName)
+                f.writeBytes(data)
+                return f.absolutePath
+            } catch (ex: Exception) {
+                return null
+            }
+        }
     }
 }

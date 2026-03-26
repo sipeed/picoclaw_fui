@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   bitsdojo_window_windows
   desktop_webview_window
   screen_retriever_windows
+  share_plus
   tray_manager
   url_launcher_windows
   webview_windows

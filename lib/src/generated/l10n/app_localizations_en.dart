@@ -154,4 +154,29 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get publicModeHint =>
       '1. Start the service\n2. Scan QR code to access PicoClaw';
+
+  @override
+  String get noLogsToExport => 'No logs to export';
+
+  @override
+  String get logsSavedToMediaLibrary =>
+      'Logs saved to Downloads (Android media library)';
+
+  @override
+  String logsSavedToDownloads(Object path) {
+    return 'Logs saved to Downloads: $path';
+  }
+
+  @override
+  String get shareLogsText => 'Picoclaw logs';
+
+  @override
+  String logsSavedToMediaLibraryWithName(Object name) {
+    return 'Logs saved to Downloads (Android media library): $name';
+  }
+
+  @override
+  String shareFailed(Object error) {
+    return 'Failed to open share dialog: $error';
+  }
 }

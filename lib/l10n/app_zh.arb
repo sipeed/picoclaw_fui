@@ -54,4 +54,22 @@
       "code": {}
     }
   }
+
+  ,
+  "noLogsToExport": "没有可导出的日志",
+  "logsSavedToMediaLibrary": "已保存到“下载”目录（Android 媒体库）",
+  "logsSavedToDownloads": "已保存到 Downloads：{path}",
+  "@logsSavedToDownloads": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "shareLogsText": "Picoclaw 日志"
+  ,
+  "logsSavedToMediaLibraryWithName": "已保存到“下载”目录（Android 媒体库）：{name}",
+  "@logsSavedToMediaLibraryWithName": {
+    "placeholders": {"name": {}}
+  },
+  "shareFailed": "打开分享对话框失败：{error}",
+  "@shareFailed": {"placeholders": {"error": {}}}
 }

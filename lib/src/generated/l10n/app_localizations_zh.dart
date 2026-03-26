@@ -151,4 +151,28 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get publicModeHint => '1. 启动服务\n2. 扫描二维码访问PicoClaw';
+
+  @override
+  String get noLogsToExport => '没有可导出的日志';
+
+  @override
+  String get logsSavedToMediaLibrary => '已保存到“下载”目录（Android 媒体库）';
+
+  @override
+  String logsSavedToDownloads(Object path) {
+    return '已保存到 Downloads：$path';
+  }
+
+  @override
+  String get shareLogsText => 'Picoclaw 日志';
+
+  @override
+  String logsSavedToMediaLibraryWithName(Object name) {
+    return '已保存到“下载”目录（Android 媒体库）：$name';
+  }
+
+  @override
+  String shareFailed(Object error) {
+    return '打开分享对话框失败：$error';
+  }
 }
