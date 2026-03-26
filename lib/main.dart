@@ -155,7 +155,9 @@ class _MainShellState extends State<MainShell>
       ],
     );
     await trayManager.setContextMenu(menu);
-    trayManager.setTitle(l10n.appTitle);
+    if (!Platform.isWindows) {
+      trayManager.setTitle(l10n.appTitle);
+    }
     if (!Platform.isLinux) {
       // Linux does not support tooltips, so we include the app name in the menu
       await trayManager.setToolTip(l10n.appTitle);
