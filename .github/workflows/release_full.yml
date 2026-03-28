@@ -313,11 +313,11 @@ jobs:
           $nsisCmd = Get-Command makensis -ErrorAction SilentlyContinue
           if ($nsisCmd) { $nsisPath = $nsisCmd.Path }
           $candidates = @(
-            (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'),
-            (Join-Path $env:ProgramFiles(x86) 'NSIS\makensis.exe'),
-            (Join-Path $env:ProgramData 'chocolatey\bin\makensis.exe'),
-            (Join-Path $env:ProgramData 'chocolatey\lib\nsis\tools\makensis.exe'),
-            (Join-Path $env:ChocolateyInstall 'bin\makensis.exe')
+            (Join-Path $env:ProgramFiles 'NSIS\\makensis.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'NSIS\\makensis.exe'),
+            (Join-Path $env:ProgramData 'chocolatey\\bin\\makensis.exe'),
+            (Join-Path $env:ProgramData 'chocolatey\\lib\\nsis\\tools\\makensis.exe'),
+            (Join-Path $env:ChocolateyInstall 'bin\\makensis.exe')
           )
           foreach ($p in $candidates) {
             if (-not $nsisPath -and (Test-Path $p)) { $nsisPath = $p; break }
