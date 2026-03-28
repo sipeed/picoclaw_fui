@@ -298,6 +298,44 @@ jobs:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
 
+      - name: Install NSIS
+        shell: powershell
+        id: install-nsis
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            choco install nsis -y
+          }
+          $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
+          if (-not (Test-Path $nsisPath)) {
+            $nsisPath = "C:\ProgramData\chocolatey\lib\nsis\tools\makensis.exe"
+          }
+          if (-not (Test-Path $nsisPath)) {
+            Write-Error "makensis not found under expected paths"
+            exit 1
+          }
+          echo "##vso[task.setvariable variable=makensis_path]$nsisPath"
+          & $nsisPath -VERSION
+
+      - name: Build Windows NSIS installer
+        shell: powershell
+        run: |
+          $installerName = "picoclaw_fui-${env:RELEASE_BASE}-windows-x64-installer.exe"
+          $nsisPath = "${{ vars.makensis_path }}"
+          if (-not $nsisPath) {
+            $nsisPath = "C:\ProgramData\chocolatey\lib\nsis\tools\makensis.exe"
+          }
+          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" ".github/picoclaw_installer.nsi"
+          if (-not (Test-Path $installerName)) {
+            Write-Error "Installer build failed: $installerName"
+            exit 1
+          }
+
+      - name: Upload Windows NSIS installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
+          path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
+
   build-linux:
     runs-on: ubuntu-22.04
     outputs:
@@ -455,5 +493,6 @@ jobs:
             picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
             picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
             picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
+            picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
