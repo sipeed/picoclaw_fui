@@ -26,7 +26,6 @@ dependencies:
   path: any
   provider: ^6.1.5+1
   qr_flutter: ^4.1.0
-<<<<<<< HEAD
   remixicon: ^4.9.2
   shared_preferences: ^2.5.5
   tray_manager: ^0.5.2

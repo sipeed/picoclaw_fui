@@ -47,3 +47,8 @@ app.*.map.json
 # FVM Version Cache
 .fvm/
 app/bin/
+
+# User-specific configuration files
+.security.yml
+config.json*
+
