@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:archive/archive.dart';
 
 final defaultRepo = 'sipeed/picoclaw';
+late String selectedPlatform;
 
 Future<void> main(List<String> args) async {
   final parser = ArgParser()
@@ -76,7 +77,7 @@ Future<void> main(List<String> args) async {
 
   final hostPlatform = detectPlatform();
   final hostArch = await detectArch();
-  final selectedPlatform = targetPlatformArg.isNotEmpty
+  selectedPlatform = targetPlatformArg.isNotEmpty
       ? (targetPlatformArg.toLowerCase() == 'macos'
             ? 'Darwin'
             : (targetPlatformArg.toLowerCase() == 'windows'
@@ -247,7 +248,7 @@ Future<void> main(List<String> args) async {
   // around Windows file-locking in many environments.
   er = await downloadAndExtract(assetUrl, assetName, token, extractTo: outDir);
   final execs = await findExecutables(er.extractDir);
-  if (execs.launcher == null && execs.core == null && execs.fallback == null) {
+  if (execs.launcher == null && execs.core == null) {
     stderr.writeln('Could not locate an executable in the archive');
     exit(5);
   }
@@ -495,8 +496,7 @@ class ExtractResult {
 class Executables {
   final File? launcher;
   final File? core;
-  final File? fallback;
-  Executables(this.launcher, this.core, this.fallback);
+  Executables(this.launcher, this.core);
 }
 
 class CopyResult {
@@ -564,7 +564,6 @@ Future<ExtractResult> downloadAndExtract(
 Future<Executables> findExecutables(Directory extractDir) async {
   File? foundLauncher;
   File? foundCore;
-  File? fallbackExecutable;
   await for (final entity in extractDir.list(
     recursive: true,
     followLinks: false,
@@ -577,21 +576,9 @@ Future<Executables> findExecutables(Directory extractDir) async {
       if (name == 'picoclaw' || name == 'picoclaw.exe') {
         foundCore = entity;
       }
-      if (fallbackExecutable == null) {
-        if (Platform.isWindows) {
-          if (name.toLowerCase().endsWith('.exe')) fallbackExecutable = entity;
-        } else {
-          try {
-            final stat = await entity.stat();
-            if ((stat.mode & 0x49) != 0) {
-              fallbackExecutable = entity;
-            }
-          } catch (_) {}
-        }
-      }
     }
   }
-  return Executables(foundLauncher, foundCore, fallbackExecutable);
+  return Executables(foundLauncher, foundCore);
 }
 
 Future<CopyResult> copyToOutDir(
@@ -603,7 +590,17 @@ Future<CopyResult> copyToOutDir(
 
   Future<void> copyIfPresent(File? src) async {
     if (src == null) return;
-    final destName = src.uri.pathSegments.last;
+    final srcName = src.uri.pathSegments.last;
+    var destName = srcName;
+    // Normalize filename for target platform: Windows uses .exe, others do not.
+    if (selectedPlatform.toLowerCase() == 'windows') {
+      if (!destName.toLowerCase().endsWith('.exe')) destName = '$destName.exe';
+    } else {
+      if (destName.toLowerCase().endsWith('.exe')) {
+        destName = destName.substring(0, destName.length - 4);
+      }
+    }
+
     final destFile = File(
       '${outDir.endsWith(Platform.pathSeparator) ? outDir : outDir + Platform.pathSeparator}$destName',
     );
@@ -630,7 +627,8 @@ Future<CopyResult> copyToOutDir(
       }
     }
 
-    if (!Platform.isWindows) {
+    // Apply executable bit based on TARGET platform (not host).
+    if (selectedPlatform.toLowerCase() != 'windows') {
       try {
         final pr = await Process.run('chmod', ['+x', destFile.path]);
         if (pr.exitCode != 0) {
@@ -647,9 +645,6 @@ Future<CopyResult> copyToOutDir(
   }
   if (execs.core != null) {
     await copyIfPresent(execs.core);
-  }
-  if (copiedNames.isEmpty && execs.fallback != null) {
-    await copyIfPresent(execs.fallback);
   }
 
   final versionContents = StringBuffer();
@@ -763,7 +758,7 @@ Future<void> installToBuildOutputs(
             } catch (_) {}
           }
         }
-        if (!Platform.isWindows) {
+        if (selectedPlatform.toLowerCase() != 'windows') {
           try {
             await Process.run('chmod', ['+x', targetFile.path]);
           } catch (_) {}
