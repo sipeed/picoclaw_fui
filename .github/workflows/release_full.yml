@@ -137,13 +137,13 @@ jobs:
       # core binaries are installed into build outputs; avoid uploading app/bin
 
       - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
@@ -206,7 +206,7 @@ jobs:
           hdiutil create -volname "PicoClawFUI" -srcfolder "$stage_dir" -ov -format UDZO "$dest"
 
       - name: Upload macOS DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
@@ -285,7 +285,7 @@ jobs:
       # core binaries are installed into build outputs; avoid uploading app/bin
 
       - name: Upload Windows ZIP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
@@ -408,7 +408,7 @@ jobs:
           dpkg-deb --build "$PKGROOT" "$DEST"
 
       - name: Upload Linux .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
