@@ -300,43 +300,33 @@ class ServiceManager extends ChangeNotifier {
     // 公共模式开启时：添加 -public，服务监听所有接口
     // 公共模式关闭时：不传 -public，服务仅监听本地接口（默认行为）
     String launchArgs = _arguments;
-    if (_publicMode && !launchArgs.contains('-public')) {
-      launchArgs = launchArgs.isEmpty ? '-public' : '$launchArgs -public';
+    // Use simple token logic (split by spaces and dedupe) instead of regex.
+    // _arguments is initialized to '' and loaded with `?? ''` in init(), so it's non-null.
+    final tokens = launchArgs.split(' ').where((t) => t.isNotEmpty).toList();
+
+    if (_publicMode && !tokens.contains('-public')) {
+      tokens.add('-public');
     }
-    //with -no-browser to prevent auto-opening browser, as we want users to open web console manually
-    if (!launchArgs.contains('-no-browser')) {
-      launchArgs = launchArgs.isEmpty
-          ? '-no-browser'
-          : '$launchArgs -no-browser';
-    }
-    // Android: 通过 MethodChannel 启动原生前台服务
-    if (Platform.isAndroid) {
-      try {
-        final ok = await _adapter.startService(port: _port, args: launchArgs);
-        _addLog('Starting PicoClaw native service...');
-        // delay sync to wait for service start
-        Future.delayed(const Duration(seconds: 2), () {
-          _syncAndroidServiceStatus();
-        });
-        if (!ok) {
-          _status = ServiceStatus.stopped;
-          _addLog('Failed to start native service');
-          notifyListeners();
-        }
-      } catch (e) {
-        _status = ServiceStatus.stopped;
-        _addLog('Failed to start native service: $e');
-        notifyListeners();
-      }
-      return;
+    if (!tokens.contains('-no-browser')) {
+      tokens.add('-no-browser');
     }
 
-    // Desktop: delegate lifecycle to adapter
+    launchArgs = tokens.join(' ');
     try {
       final ok = await _adapter.startService(port: _port, args: launchArgs);
+
       if (ok) {
-        _status = ServiceStatus.running;
-        _addLog('Service started on $webUrl');
+        if (Platform.isAndroid) {
+          // Android: keep original behavior — log and defer health check to native side
+          _addLog('Starting PicoClaw native service...');
+          Future.delayed(const Duration(seconds: 2), () {
+            _syncAndroidServiceStatus();
+          });
+        } else {
+          // Desktop: consider service running immediately
+          _status = ServiceStatus.running;
+          _addLog('Service started on $webUrl');
+        }
       } else {
         _status = ServiceStatus.stopped;
         final code = _adapter.getLastErrorCode();
