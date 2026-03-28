@@ -625,10 +625,10 @@ packages:
     dependency: "direct main"
     description:
       name: remixicon
-      sha256: b1d8480cb860ba53d2ec6f3fc015919b7f366628461b93f654e07ae32d39c607
+      sha256: "78c984c2f8cfe2fc4a620e89e36445795d7291851a6ffd36a4402c210f2920c4"
       url: "https://pub.dev"
     source: hosted
-    version: "4.9.1"
+    version: "4.9.2"
   screen_retriever:
     dependency: transitive
     description:
