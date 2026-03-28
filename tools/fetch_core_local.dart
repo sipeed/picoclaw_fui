@@ -239,13 +239,23 @@ Future<void> main(List<String> args) async {
     exit(0);
   }
 
+  // Remove existing out-dir before download to ensure a clean extraction.
+  final outDirDir = Directory(outDir);
+  if (await outDirDir.exists()) {
+    stdout.writeln('Removing existing out-dir: ${outDirDir.path}');
+    try {
+      await outDirDir.delete(recursive: true);
+    } catch (e) {
+      stderr.writeln('Warning: failed to remove ${outDirDir.path}: $e');
+      // Proceed: attempt to recreate the directory anyway.
+    }
+  }
+  await outDirDir.create(recursive: true);
+
   // Download, extract, find executables, copy to out-dir, and (optionally)
   // install into build outputs. These steps are encapsulated in helper
   // functions added below.
   late ExtractResult er;
-  // Extract directly into `outDir` to avoid using a separate temporary
-  // extraction directory; this mirrors the previous behavior that worked
-  // around Windows file-locking in many environments.
   er = await downloadAndExtract(assetUrl, assetName, token, extractTo: outDir);
   final execs = await findExecutables(er.extractDir);
   if (execs.launcher == null && execs.core == null) {
@@ -527,6 +537,8 @@ Future<ExtractResult> downloadAndExtract(
   }
   final bytes = resp.bodyBytes;
 
+  stdout.writeln('Downloaded ${bytes.length} bytes from $assetUrl');
+
   stdout.writeln('Extracting archive');
   final extractDir = Directory(extractTo);
   await extractDir.create(recursive: true);
@@ -538,7 +550,13 @@ Future<ExtractResult> downloadAndExtract(
       if (file.isFile) {
         final out = File(filePath);
         await out.create(recursive: true);
-        await out.writeAsBytes(file.content as List<int>);
+        final dynamic content = file.content;
+        if (content is List<int> && content.isNotEmpty) {
+          await out.writeAsBytes(content, flush: true);
+          stdout.writeln(
+            'ARCHIVE: zip entry ${file.name} has ${content.length} bytes of content',
+          );
+        }
       } else {
         await Directory(filePath).create(recursive: true);
       }
@@ -551,34 +569,91 @@ Future<ExtractResult> downloadAndExtract(
       if (f.isFile) {
         final out = File(filePath);
         await out.create(recursive: true);
-        await out.writeAsBytes(f.content as List<int>);
+        final dynamic content = f.content;
+        if (content is List<int> && content.isNotEmpty) {
+          await out.writeAsBytes(content, flush: true);
+          stdout.writeln(
+            'ARCHIVE: tar entry ${f.name} has ${content.length} bytes of content',
+          );
+        }
       } else {
         await Directory(filePath).create(recursive: true);
       }
     }
   }
 
+  // Report extracted file sizes for debugging
+  var extractedCount = 0;
+  await for (final entity in extractDir.list(
+    recursive: true,
+    followLinks: false,
+  )) {
+    if (entity is File) {
+      final len = await entity.length();
+      stdout.writeln('ARCHIVE: Extracted ${entity.path} ($len bytes)');
+      extractedCount++;
+    }
+  }
+  stdout.writeln(
+    'ARCHIVE: Extraction complete; $extractedCount files extracted to ${extractDir.path}',
+  );
+
   return ExtractResult(extractDir);
 }
 
 Future<Executables> findExecutables(Directory extractDir) async {
-  File? foundLauncher;
-  File? foundCore;
+  File? plainLauncher;
+  File? exeLauncher;
+  File? plainCore;
+  File? exeCore;
+
   await for (final entity in extractDir.list(
     recursive: true,
     followLinks: false,
   )) {
     if (entity is File) {
       final name = entity.uri.pathSegments.last;
-      if (name == 'picoclaw-launcher' || name == 'picoclaw-launcher.exe') {
-        foundLauncher = entity;
-      }
-      if (name == 'picoclaw' || name == 'picoclaw.exe') {
-        foundCore = entity;
-      }
+      if (name == 'picoclaw-launcher') plainLauncher = entity;
+      if (name == 'picoclaw-launcher.exe') exeLauncher = entity;
+      if (name == 'picoclaw') plainCore = entity;
+      if (name == 'picoclaw.exe') exeCore = entity;
     }
   }
-  return Executables(foundLauncher, foundCore);
+
+  Future<int> fileLen(File? f) async {
+    if (f == null) return -1;
+    try {
+      if (await f.exists()) return await f.length();
+    } catch (_) {}
+    return -1;
+  }
+
+  final isWindows = selectedPlatform.toLowerCase() == 'windows';
+  final plLauncherLen = await fileLen(plainLauncher);
+  final exLauncherLen = await fileLen(exeLauncher);
+  final plCoreLen = await fileLen(plainCore);
+  final exCoreLen = await fileLen(exeCore);
+
+  File? choose(File? plain, int plainLen, File? exe, int exeLen) {
+    if (isWindows) {
+      if (exeLen > 0) return exe;
+      if (plainLen > 0) return plain;
+      return exe ?? plain;
+    } else {
+      if (plainLen > 0) return plain;
+      if (exeLen > 0) return exe;
+      return plain ?? exe;
+    }
+  }
+
+  final chosenLauncher = choose(
+    plainLauncher,
+    plLauncherLen,
+    exeLauncher,
+    exLauncherLen,
+  );
+  final chosenCore = choose(plainCore, plCoreLen, exeCore, exCoreLen);
+  return Executables(chosenLauncher, chosenCore);
 }
 
 Future<CopyResult> copyToOutDir(
@@ -605,24 +680,38 @@ Future<CopyResult> copyToOutDir(
       '${outDir.endsWith(Platform.pathSeparator) ? outDir : outDir + Platform.pathSeparator}$destName',
     );
     await destFile.parent.create(recursive: true);
+    // If source and destination are the same path (common when we extract
+    // directly into `outDir`), avoid copying which would truncate the file.
+    final srcPath = src.absolute.path;
+    final destPath = destFile.absolute.path;
+    final bool samePath = Platform.isWindows
+        ? srcPath.toLowerCase() == destPath.toLowerCase()
+        : srcPath == destPath;
 
-    // Try writing by streaming to the destination (this truncates/overwrites).
-    try {
-      final sink = destFile.openWrite();
-      await src.openRead().pipe(sink);
-      await sink.close();
-    } catch (_) {
-      // Fallback: read bytes and write (also overwrites).
+    if (samePath) {
+      // No copy needed; file already in place. Ensure permissions below.
+      stdout.writeln(
+        'Source equals destination; skipping copy for ${destFile.path}',
+      );
+    } else {
+      // Try writing by streaming to the destination (this truncates/overwrites).
       try {
-        final bytes = await src.readAsBytes();
-        await destFile.writeAsBytes(bytes, flush: true);
+        final sink = destFile.openWrite();
+        await src.openRead().pipe(sink);
+        await sink.close();
       } catch (_) {
-        // Final fallback: attempt delete then copy; if that fails rethrow.
+        // Fallback: read bytes and write (also overwrites).
         try {
-          if (await destFile.exists()) await destFile.delete();
-          await src.copy(destFile.path);
-        } catch (e) {
-          rethrow;
+          final bytes = await src.readAsBytes();
+          await destFile.writeAsBytes(bytes, flush: true);
+        } catch (_) {
+          // Final fallback: attempt delete then copy; if that fails rethrow.
+          try {
+            if (await destFile.exists()) await destFile.delete();
+            await src.copy(destFile.path);
+          } catch (e) {
+            rethrow;
+          }
         }
       }
     }
@@ -636,6 +725,17 @@ Future<CopyResult> copyToOutDir(
         }
       } catch (_) {}
     }
+
+    // Report final written size and warn if zero-length
+    try {
+      if (await destFile.exists()) {
+        final flen = await destFile.length();
+        stdout.writeln('Wrote: ${destFile.path} ($flen bytes)');
+        if (flen == 0) {
+          stderr.writeln('Warning: wrote zero-length file: ${destFile.path}');
+        }
+      }
+    } catch (_) {}
 
     copiedNames.add(destName);
   }
