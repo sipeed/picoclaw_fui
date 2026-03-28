@@ -13,10 +13,10 @@ packages:
     dependency: "direct main"
     description:
       name: archive
-      sha256: cb6a278ef2dbb298455e1a713bda08524a175630ec643a242c399c932a0a1f7d
+      sha256: a96e8b390886ee8abb49b7bd3ac8df6f451c621619f52a26e815fdcf568959ff
       url: "https://pub.dev"
     source: hosted
-    version: "3.6.1"
+    version: "4.0.9"
   args:
     dependency: "direct main"
     description:
@@ -369,10 +369,10 @@ packages:
     dependency: transitive
     description:
       name: image
-      sha256: f31d52537dc417fdcde36088fdf11d191026fd5e4fae742491ebd40e5a8bea7d
+      sha256: f9881ff4998044947ec38d098bc7c8316ae1186fa786eddffdb867b9bc94dfce
       url: "https://pub.dev"
     source: hosted
-    version: "4.3.0"
+    version: "4.8.0"
   intl:
     dependency: "direct main"
     description:
@@ -581,6 +581,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  posix:
+    dependency: transitive
+    description:
+      name: posix
+      sha256: "185ef7606574f789b40f289c233efa52e96dead518aed988e040a10737febb07"
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.5.0"
   process_run:
     dependency: "direct main"
     description:
@@ -625,10 +633,10 @@ packages:
     dependency: "direct main"
     description:
       name: remixicon
-      sha256: "78c984c2f8cfe2fc4a620e89e36445795d7291851a6ffd36a4402c210f2920c4"
+      sha256: b1d8480cb860ba53d2ec6f3fc015919b7f366628461b93f654e07ae32d39c607
       url: "https://pub.dev"
     source: hosted
-    version: "4.9.2"
+    version: "4.9.1"
   screen_retriever:
     dependency: transitive
     description:
