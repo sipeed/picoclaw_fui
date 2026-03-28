@@ -298,6 +298,30 @@ jobs:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
 
+      - name: Install NSIS
+        shell: powershell
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            choco install nsis -y
+          }
+          makensis -VERSION
+
+      - name: Build Windows NSIS installer
+        shell: powershell
+        run: |
+          $installerName = "picoclaw_fui-${env:RELEASE_BASE}-windows-x64-installer.exe"
+          makensis.exe /DRELEASE_BASE="${env:RELEASE_BASE}" ".github/picoclaw_installer.nsi"
+          if (-not (Test-Path $installerName)) {
+            Write-Error "Installer build failed: $installerName"
+            exit 1
+          }
+
+      - name: Upload Windows NSIS installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
+          path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
+
   build-linux:
     runs-on: ubuntu-22.04
     outputs:
@@ -455,5 +479,6 @@ jobs:
             picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
             picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
             picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
+            picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
