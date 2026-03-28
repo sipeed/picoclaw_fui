@@ -197,7 +197,7 @@ jobs:
           if [ ! -d "$out_dir" ]; then
             echo "Release output not found"; exit 1
           fi
-          app_path=$(find "$out_dir" -maxdepth 1 -name "*.app" -print -quit)
+          app_path="$out_dir"/app/bin
           if [ -z "$app_path" ]; then
             echo "No .app found in $out_dir"; ls -la "$out_dir" || true; exit 1
           fi
