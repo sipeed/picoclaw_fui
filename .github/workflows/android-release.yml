@@ -50,7 +50,7 @@ jobs:
           channel: 'stable'
 
       - name: Cache pub and Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.pub-cache
