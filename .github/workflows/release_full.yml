@@ -302,29 +302,45 @@ jobs:
         shell: powershell
         id: install-nsis
         run: |
-          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+          Write-Output "Ensure NSIS is installed"
+          $nsisCmd = Get-Command makensis -ErrorAction SilentlyContinue
+          if (-not $nsisCmd) {
             choco install nsis -y
+            $refresh = (Join-Path $env:ChocolateyInstall 'helpers\refreshenv.cmd')
+            if (Test-Path $refresh) { & $refresh } else { Start-Sleep -Seconds 2 }
           }
-          $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
-          if (-not (Test-Path $nsisPath)) {
-            $nsisPath = "C:\ProgramData\chocolatey\lib\nsis\tools\makensis.exe"
+          $nsisPath = $null
+          $nsisCmd = Get-Command makensis -ErrorAction SilentlyContinue
+          if ($nsisCmd) { $nsisPath = $nsisCmd.Path }
+          $candidates = @(
+            (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'),
+            (Join-Path $env:ProgramFiles(x86) 'NSIS\makensis.exe'),
+            (Join-Path $env:ProgramData 'chocolatey\bin\makensis.exe'),
+            (Join-Path $env:ProgramData 'chocolatey\lib\nsis\tools\makensis.exe'),
+            (Join-Path $env:ChocolateyInstall 'bin\makensis.exe')
+          )
+          foreach ($p in $candidates) {
+            if (-not $nsisPath -and (Test-Path $p)) { $nsisPath = $p; break }
           }
-          if (-not (Test-Path $nsisPath)) {
-            Write-Error "makensis not found under expected paths"
+          if (-not $nsisPath) {
+            Write-Error "makensis not found after installation. Checked: $($candidates -join ';')"
             exit 1
           }
-          echo "##vso[task.setvariable variable=makensis_path]$nsisPath"
+          Write-Output "Found makensis at $nsisPath"
+          Add-Content -Path $env:GITHUB_ENV -Value "MAKENSIS_PATH=$nsisPath"
           & $nsisPath -VERSION
 
       - name: Build Windows NSIS installer
         shell: powershell
         run: |
           $installerName = "picoclaw_fui-${env:RELEASE_BASE}-windows-x64-installer.exe"
-          $nsisPath = "${{ vars.makensis_path }}"
+          $nsisPath = $env:MAKENSIS_PATH
           if (-not $nsisPath) {
-            $nsisPath = "C:\ProgramData\chocolatey\lib\nsis\tools\makensis.exe"
+            $cmd = Get-Command makensis -ErrorAction SilentlyContinue
+            if ($cmd) { $nsisPath = $cmd.Path } else { Write-Error "makensis not found"; exit 1 }
           }
-          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" ".github/picoclaw_installer.nsi"
+          Write-Output "Using makensis: $nsisPath"
+          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" /DLAUNCHER="picoclaw_flutter_ui.exe" ".github/picoclaw_installer_fixed.nsi"
           if (-not (Test-Path $installerName)) {
             Write-Error "Installer build failed: $installerName"
             exit 1
