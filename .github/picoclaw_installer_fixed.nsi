@@ -4,6 +4,10 @@
   !define RELEASE_BASE "unknown"
 !endif
 
+!ifndef CONTENTS_DIR
+  !define CONTENTS_DIR "installer_stage"
+!endif
+
 !define APP_NAME "PicoClaw FUI"
 !define INSTALL_DIR_D "D:\\Program Files\\picoclaw_fui"
 !define INSTALL_DIR_C "C:\\Program Files\\picoclaw_fui"
@@ -38,7 +42,8 @@ UninstPage instfiles
 
 Section "Install"
   SetOutPath "$INSTDIR"
-  File /r "build\\windows\\x64\\runner\\Release\\*"
+  ; include compiled build outputs from CONTENTS_DIR (compile-time define)
+  File /r "${CONTENTS_DIR}\\*"
 
   CreateDirectory "$SMPROGRAMS\\PicoClaw FUI"
 

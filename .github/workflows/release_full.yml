@@ -297,6 +297,27 @@ jobs:
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
+      
+      - name: Stage installer files
+        shell: powershell
+        run: |
+          Write-Output "Staging installer files into 'installer_stage'"
+          $stage = Join-Path $PWD 'installer_stage'
+          Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          $releaseDir = Join-Path $PWD 'build\\windows\\x64\\runner\\Release'
+          if (Test-Path $releaseDir) {
+            Copy-Item -Path (Join-Path $releaseDir '*') -Destination $stage -Recurse -Force
+          } else {
+            Write-Output "No windows Release dir found at $releaseDir"
+          }
+          $appBin = Join-Path $PWD 'app\\bin'
+          if (Test-Path $appBin) {
+            Copy-Item -Path (Join-Path $appBin '*') -Destination (Join-Path $stage 'app\\bin') -Recurse -Force
+          }
+          if (Test-Path 'assets\\icon.ico') { Copy-Item -Path 'assets\\icon.ico' -Destination $stage -Force }
+          if (Test-Path 'assets\\app_icon.png') { Copy-Item -Path 'assets\\app_icon.png' -Destination $stage -Force }
+          Add-Content -Path $env:GITHUB_ENV -Value "INSTALLER_STAGE=$stage"
 
       - name: Install NSIS
         shell: powershell
@@ -340,7 +361,9 @@ jobs:
             if ($cmd) { $nsisPath = $cmd.Path } else { Write-Error "makensis not found"; exit 1 }
           }
           Write-Output "Using makensis: $nsisPath"
-          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" /DLAUNCHER="picoclaw_flutter_ui.exe" ".github/picoclaw_installer_fixed.nsi"
+          $contentsDir = $env:INSTALLER_STAGE
+          if (-not $contentsDir) { $contentsDir = Join-Path $PWD 'installer_stage' }
+          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" /DCONTENTS_DIR="$contentsDir" /DLAUNCHER="picoclaw_flutter_ui.exe" ".github/picoclaw_installer_fixed.nsi"
           if (-not (Test-Path $installerName)) {
             Write-Error "Installer build failed: $installerName"
             exit 1
