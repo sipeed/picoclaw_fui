@@ -51,4 +51,5 @@ app/bin/
 # User-specific configuration files
 .security.yml
 config.json*
+/.github/picoclaw_installer.nsi
 
