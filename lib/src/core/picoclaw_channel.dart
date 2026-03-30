@@ -135,4 +135,29 @@ class PicoClawChannel {
       return {'success': false, 'message': 'Exception: $e'};
     }
   }
+
+  /// 发送极简测试事件（无参数）
+  static Future<Map<String, dynamic>> sendMinimalUmengTest() async {
+    debugPrint('[PicoClawChannel] === sendMinimalUmengTest START ===');
+
+    try {
+      final result = await _channel
+          .invokeMethod<Map>('sendMinimalUmengTest')
+          .timeout(const Duration(seconds: 5));
+
+      if (result == null) {
+        debugPrint('[PicoClawChannel] ERROR: Native returned null');
+        return const {'success': false, 'message': 'No response from native.'};
+      }
+
+      final mappedResult = Map<String, dynamic>.from(result);
+      debugPrint(
+        '[PicoClawChannel] Minimal test result: success=${mappedResult['success']}',
+      );
+      return mappedResult;
+    } catch (e) {
+      debugPrint('[PicoClawChannel] ERROR: Exception caught: $e');
+      return {'success': false, 'message': 'Exception: $e'};
+    }
+  }
 }

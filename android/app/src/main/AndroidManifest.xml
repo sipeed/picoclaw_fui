@@ -45,6 +45,24 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            
+            <!-- 友盟实时测试需要的 URL Scheme 配置 -->
+            <!-- 格式1：um.你的AppKey (友盟实时日志使用，带点号) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="um.${PICOCLAW_UMENG_APP_KEY}" />
+            </intent-filter>
+            
+            <!-- 友盟实时测试需要的 URL Scheme 配置 -->
+            <!-- 格式2：um你的AppKey (不带点号，兼容不同版本) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="um${PICOCLAW_UMENG_APP_KEY}" />
+            </intent-filter>
         </activity>
 
         <!-- PicoClaw 原生前台服务（运行 Go 二进制） -->

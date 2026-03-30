@@ -191,6 +191,17 @@ class PicoClawMethodChannel(
                         result.error("UPLOAD_UMENG_REPORT_FAILED", e.message, null)
                     }
                 }
+                "sendMinimalUmengTest" -> {
+                    android.util.Log.d("PicoClawChannel", "=== sendMinimalUmengTest called ===")
+                    try {
+                        val testResult = AnalyticsReporter.sendMinimalTestEvent(context)
+                        android.util.Log.d("PicoClawChannel", "Minimal test result: success=${testResult["success"]}")
+                        result.success(testResult)
+                    } catch (e: Exception) {
+                        android.util.Log.e("PicoClawChannel", "sendMinimalUmengTest failed: ${e.message}", e)
+                        result.error("MINIMAL_TEST_FAILED", e.message, null)
+                    }
+                }
                 "getWebPort" -> {
                     result.success(18800)
                 }

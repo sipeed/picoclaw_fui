@@ -42,40 +42,15 @@ object AnalyticsReporter {
             return
         }
         
-        val networkAvailable = checkNetwork(context)
         android.util.Log.d("AnalyticsReporter", "Pre-initializing Umeng SDK with channel=$umengChannel")
-        android.util.Log.d("AnalyticsReporter", "Network available: $networkAvailable")
         
         try {
             // PreInit must be called before init
             UMConfigure.preInit(context.applicationContext, umengAppKey, umengChannel)
             android.util.Log.d("AnalyticsReporter", "PreInit completed successfully")
             
-            // Auto-initialize if not already initialized (for first-run scenarios)
-            if (!umengInitialized) {
-                android.util.Log.d("AnalyticsReporter", "Auto-initializing Umeng SDK for device feedback")
-                
-                val appContext = context.applicationContext
-                
-                // Enable debug mode to see detailed logs
-                UMConfigure.setLogEnabled(true)
-                android.util.Log.d("AnalyticsReporter", "Debug logging enabled")
-                
-                // Submit consent result (required by Umeng privacy policy)
-                UMConfigure.submitPolicyGrantResult(appContext, true)
-                android.util.Log.d("AnalyticsReporter", "Policy grant result submitted")
-                
-                // Initialize on main thread
-                if (Looper.myLooper() == Looper.getMainLooper()) {
-                    performInit(appContext)
-                } else {
-                    Handler(Looper.getMainLooper()).post {
-                        performInit(appContext)
-                    }
-                }
-            } else {
-                android.util.Log.d("AnalyticsReporter", "Umeng SDK already initialized")
-            }
+            // 注意：不再自动初始化，必须等待用户明确同意后再调用 submitConsent()
+            android.util.Log.d("AnalyticsReporter", "Waiting for user consent before full initialization")
         } catch (e: Exception) {
             initError = e.message
             android.util.Log.e("AnalyticsReporter", "Failed to preInit Umeng SDK: ${e.message}", e)
@@ -85,6 +60,11 @@ object AnalyticsReporter {
     private fun performInit(context: Context) {
         try {
             android.util.Log.d("AnalyticsReporter", "Performing Umeng SDK init on main thread...")
+            
+            // 开启友盟调试日志，实时日志功能需要
+            UMConfigure.setLogEnabled(true)
+            android.util.Log.d("AnalyticsReporter", "Umeng debug logging enabled")
+            
             UMConfigure.init(
                 context,
                 umengAppKey,
@@ -92,10 +72,14 @@ object AnalyticsReporter {
                 UMConfigure.DEVICE_TYPE_PHONE,
                 null,
             )
-            MobclickAgent.setPageCollectionMode(MobclickAgent.PageMode.AUTO)
-            // 设置为实时发送模式，确保事件立即上报
-            MobclickAgent.setCatchUncaughtExceptions(true)
-            android.util.Log.d("AnalyticsReporter", "Set to real-time send mode")
+            // 使用LEGACY_MANUAL模式，避免自动采集页面数据，手动控制事件上报
+            MobclickAgent.setPageCollectionMode(MobclickAgent.PageMode.LEGACY_MANUAL)
+            // 设置Session间隔时间为30秒，减少不必要的数据上报
+            MobclickAgent.setSessionContinueMillis(30 * 1000)
+            // 开启实时调试模式（测试阶段使用）
+            MobclickAgent.setDebugMode(true)
+            android.util.Log.d("AnalyticsReporter", "Umeng debug mode enabled")
+            
             umengInitialized = true
             initError = null
             android.util.Log.d("AnalyticsReporter", "Umeng SDK initialized successfully")
@@ -110,17 +94,24 @@ object AnalyticsReporter {
             return
         }
         val appContext = context.applicationContext
-        UMConfigure.submitPolicyGrantResult(appContext, granted)
-        if (granted && !umengInitialized) {
-            UMConfigure.init(
-                appContext,
-                umengAppKey,
-                umengChannel,
-                UMConfigure.DEVICE_TYPE_PHONE,
-                null,
-            )
-            MobclickAgent.setPageCollectionMode(MobclickAgent.PageMode.AUTO)
-            umengInitialized = true
+        
+        try {
+            android.util.Log.d("AnalyticsReporter", "Submitting consent: granted=$granted")
+            UMConfigure.submitPolicyGrantResult(appContext, granted)
+            
+            if (granted && !umengInitialized) {
+                android.util.Log.d("AnalyticsReporter", "Initializing Umeng SDK after consent...")
+                // 在主线程执行初始化
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    performInit(appContext)
+                } else {
+                    Handler(Looper.getMainLooper()).post {
+                        performInit(appContext)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AnalyticsReporter", "Failed to submit consent: ${e.message}", e)
         }
     }
 
@@ -128,70 +119,180 @@ object AnalyticsReporter {
         android.util.Log.d("AnalyticsReporter", "=== uploadDeviceReport START ===")
         android.util.Log.d("AnalyticsReporter", "umengInitialized=$umengInitialized, provider=$provider")
         
+        // 1. 检查Provider配置
         if (!isUmengProviderEnabled()) {
             android.util.Log.e("AnalyticsReporter", "Umeng provider not enabled!")
-            return mapOf(
+            return mapOf<String, Any>(
                 "success" to false,
+                "errorType" to "CONFIG_ERROR",
                 "message" to "Umeng provider is not enabled for this build.",
             )
         }
+        
+        // 2. 检查SDK初始化状态
         if (!umengInitialized) {
             android.util.Log.e("AnalyticsReporter", "Umeng SDK not initialized")
-            return mapOf(
+            return mapOf<String, Any>(
                 "success" to false,
-                "message" to "Umeng SDK is not initialized. Error: $initError",
+                "errorType" to "NOT_INITIALIZED",
+                "message" to "Umeng SDK is not initialized. Please call setUmengAnalyticsConsent(true) first. Error: $initError",
             )
         }
+        
+        // 3. 检查网络状态
+        if (!checkNetwork(context)) {
+            android.util.Log.e("AnalyticsReporter", "Network not available")
+            return mapOf<String, Any>(
+                "success" to false,
+                "errorType" to "NETWORK_ERROR",
+                "message" to "Network not available. Please check your connection.",
+            )
+        }
+        android.util.Log.d("AnalyticsReporter", "Network check passed")
 
-        // Check network status before sending
-        val networkAvailable = checkNetwork(context)
-        android.util.Log.d("AnalyticsReporter", "Network available: $networkAvailable")
-
-        val eventPayload = linkedMapOf<String, Any>(
-            "installId" to ((payload["installId"] as? String).orEmpty()),
-            "platform" to ((payload["platform"] as? String).orEmpty()),
-            "deviceModel" to ((payload["deviceModel"] as? String).orEmpty()),
-            "systemVersion" to ((payload["systemVersion"] as? String).orEmpty()),
-            "clientType" to ((payload["clientType"] as? String).orEmpty()),
-            "updatedAt" to ((payload["updatedAt"] as? String).orEmpty()),
-            "manufacturer" to Build.MANUFACTURER.orEmpty(),
-            "sdkInt" to Build.VERSION.SDK_INT,
-            "channel" to ((payload["channel"] as? String).orEmpty()),
-        )
+        // 4. 准备事件数据 - 只使用非空参数，避免友盟过滤
+        val eventPayload = linkedMapOf<String, String>()
+        
+        // 安全地添加参数，过滤空值
+        (payload["installId"] as? String)?.takeIf { it.isNotBlank() }?.let { 
+            eventPayload["installId"] = it 
+        }
+        (payload["platform"] as? String)?.takeIf { it.isNotBlank() }?.let { 
+            eventPayload["platform"] = it 
+        }
+        (payload["deviceModel"] as? String)?.takeIf { it.isNotBlank() }?.let { 
+            eventPayload["deviceModel"] = it 
+        }
+        (payload["systemVersion"] as? String)?.takeIf { it.isNotBlank() }?.let { 
+            eventPayload["systemVersion"] = it 
+        }
+        (payload["clientType"] as? String)?.takeIf { it.isNotBlank() }?.let { 
+            eventPayload["clientType"] = it 
+        }
+        (payload["channel"] as? String)?.takeIf { it.isNotBlank() }?.let { 
+            eventPayload["channel"] = it 
+        }
+        
+        // 添加固定参数
+        eventPayload["manufacturer"] = Build.MANUFACTURER ?: "unknown"
+        eventPayload["sdkInt"] = Build.VERSION.SDK_INT.toString()
+        eventPayload["timestamp"] = System.currentTimeMillis().toString()
+        
         android.util.Log.d("AnalyticsReporter", "Event payload prepared: $eventPayload")
+        android.util.Log.d("AnalyticsReporter", "Payload entry count: ${eventPayload.size}")
 
+        // 5. 发送事件（多参数类型事件使用 onEventValue）
         return try {
-            android.util.Log.d("AnalyticsReporter", "[1/4] Preparing to send event '$DEVICE_REPORT_EVENT'")
+            android.util.Log.d("AnalyticsReporter", "[1/3] Sending multi-parameter event '$DEVICE_REPORT_EVENT'...")
+            android.util.Log.d("AnalyticsReporter", "Final payload: $eventPayload")
+            android.util.Log.d("AnalyticsReporter", "Payload keys: ${eventPayload.keys}")
             
-            // Method 1: Counter event
-            android.util.Log.d("AnalyticsReporter", "[2/4] Calling MobclickAgent.onEvent()...")
-            MobclickAgent.onEvent(context.applicationContext, DEVICE_REPORT_EVENT, "report")
-            android.util.Log.d("AnalyticsReporter", "[3/4] MobclickAgent.onEvent() returned successfully")
-            
-            // Method 2: Try to force sync
-            android.util.Log.d("AnalyticsReporter", "[4/4] Attempting to flush data...")
-            try {
-                val method = MobclickAgent::class.java.getDeclaredMethod("flush", Context::class.java)
-                method.invoke(null, context.applicationContext)
-                android.util.Log.d("AnalyticsReporter", "Flush method called via reflection")
-            } catch (e: Exception) {
-                android.util.Log.w("AnalyticsReporter", "Reflection flush failed: ${e.message}, using fallback")
-                MobclickAgent.onKillProcess(context.applicationContext)
-                android.util.Log.d("AnalyticsReporter", "Fallback flush (onKillProcess) called")
+            // 检查 payload 是否为空
+            if (eventPayload.isEmpty()) {
+                android.util.Log.e("AnalyticsReporter", "Payload is empty!")
+                return mapOf<String, Any>(
+                    "success" to false,
+                    "errorType" to "INVALID_PAYLOAD",
+                    "message" to "Event payload is empty",
+                )
             }
             
+            // 验证每个参数值
+            eventPayload.forEach { (key, value) ->
+                android.util.Log.d("AnalyticsReporter", "Param[$key] = '$value' (length=${value.length})")
+            }
+            
+            // 使用 onEventValue 方法上报多参数事件
+            // 数值设为 1 表示一次事件触发
+            MobclickAgent.onEventValue(
+                context.applicationContext, 
+                DEVICE_REPORT_EVENT, 
+                eventPayload,
+                1  // 事件数值，设为1表示计数一次
+            )
+            android.util.Log.d("AnalyticsReporter", "[2/3] MobclickAgent.onEventValue() called successfully")
+            
+            // 额外发送一个简单事件作为对照
+            MobclickAgent.onEvent(context.applicationContext, "simple_test_event")
+            android.util.Log.d("AnalyticsReporter", "[BONUS] Sent simple event 'simple_test_event'")
+            
+            // 触发友盟内部的数据上报（实时日志可能需要等待SDK自动上报）
+            // 友盟SDK会在合适的时机自动上报，通常几秒到几分钟内
+            MobclickAgent.onPause(context.applicationContext)
+            MobclickAgent.onResume(context.applicationContext)
+            android.util.Log.d("AnalyticsReporter", "[3/3] Triggered data sync via onPause/onResume")
+            
             android.util.Log.d("AnalyticsReporter", "=== uploadDeviceReport SUCCESS ===")
-            mapOf(
+            android.util.Log.i("AnalyticsReporter", "Event '$DEVICE_REPORT_EVENT' sent with ${eventPayload.size} parameters")
+            android.util.Log.i("AnalyticsReporter", "========================================")
+            android.util.Log.i("AnalyticsReporter", "请在友盟后台查看: https://www.umeng.com")
+            android.util.Log.i("AnalyticsReporter", "事件名: $DEVICE_REPORT_EVENT")
+            android.util.Log.i("AnalyticsReporter", "参数数量: ${eventPayload.size}")
+            android.util.Log.i("AnalyticsReporter", "参数列表: ${eventPayload.keys.joinToString(", ")}")
+            android.util.Log.i("AnalyticsReporter", "========================================")
+            mapOf<String, Any>(
                 "success" to true,
-                "message" to "Event sent successfully",
+                "errorType" to "",
+                "message" to "Event sent successfully with ${eventPayload.size} params",
+                "paramCount" to eventPayload.size,
+                "paramKeys" to eventPayload.keys.toList(),
             )
         } catch (e: Exception) {
             android.util.Log.e("AnalyticsReporter", "=== uploadDeviceReport FAILED ===")
             android.util.Log.e("AnalyticsReporter", "Exception: ${e.message}", e)
-            mapOf(
+            mapOf<String, Any>(
                 "success" to false,
-                "message" to "Upload failed: ${e.message ?: e.javaClass.simpleName}",
+                "errorType" to "SDK_ERROR",
+                "message" to "Umeng SDK error: ${e.message ?: e.javaClass.simpleName}",
             )
         }
+    }
+    
+    /**
+     * 发送极简测试事件（无参数）
+     * 用于验证基本连接是否正常
+     */
+    fun sendMinimalTestEvent(context: Context): Map<String, Any> {
+        android.util.Log.d("AnalyticsReporter", "=== sendMinimalTestEvent START ===")
+        
+        if (!umengInitialized) {
+            return mapOf<String, Any>(
+                "success" to false,
+                "errorType" to "NOT_INITIALIZED",
+                "message" to "SDK not initialized",
+            )
+        }
+
+        return try {
+            // 发送一个无参数的简单事件
+            MobclickAgent.onEvent(context.applicationContext, "minimal_test_no_params")
+            android.util.Log.i("AnalyticsReporter", "Minimal test event sent successfully")
+
+            mapOf<String, Any>(
+                "success" to true,
+                "message" to "Minimal test event sent",
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("AnalyticsReporter", "Failed to send minimal event: ${e.message}")
+            mapOf<String, Any>(
+                "success" to false,
+                "errorType" to "SDK_ERROR",
+                "message" to (e.message ?: "Unknown error"),
+            )
+        }
+    }
+    
+    /**
+     * 获取友盟SDK调试信息
+     */
+    fun getDebugInfo(): Map<String, Any> {
+        return mapOf<String, Any>(
+            "umengInitialized" to umengInitialized,
+            "umengAppKey" to (if (umengAppKey.isBlank()) "NOT_SET" else "${umengAppKey.take(4)}****"),
+            "umengChannel" to umengChannel,
+            "provider" to provider,
+            "isEnabled" to isUmengProviderEnabled(),
+            "initError" to (initError ?: "None"),
+        )
     }
 }

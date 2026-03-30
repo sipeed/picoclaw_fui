@@ -73,6 +73,9 @@ android {
         // Pass values to AndroidManifest.xml via manifestPlaceholders
         manifestPlaceholders["PICOCLAW_UMENG_APP_KEY"] = umengAppKey
         manifestPlaceholders["PICOCLAW_UMENG_CHANNEL"] = umengChannel
+        
+        // 友盟实时测试需要的 URL Scheme（格式：umeng.你的AppKey）
+        manifestPlaceholders["UMENG_SCHEME"] = "umeng.${umengAppKey}"
     }
 
     buildTypes {

@@ -7,6 +7,7 @@ import 'package:picoclaw_flutter_ui/src/generated/l10n/app_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:picoclaw_flutter_ui/src/ui/widgets/tv_focusable.dart';
+import 'umeng_test_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -408,6 +409,46 @@ class _DashboardPageState extends State<DashboardPage> {
                 ((0.4).clamp(0.0, 1.0) * 255).round(),
               ),
               fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 24),
+          // 临时测试按钮 - 友盟测试
+          TVFocusable(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const UmengTestPage()),
+              );
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: colorScheme.error.withAlpha(
+                  ((0.1).clamp(0.0, 1.0) * 255).round(),
+                ),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: colorScheme.error.withAlpha(
+                    ((0.3).clamp(0.0, 1.0) * 255).round(),
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Remix.bug_line, size: 18, color: colorScheme.error),
+                  const SizedBox(width: 8),
+                  Text(
+                    '友盟上报测试',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.error,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
