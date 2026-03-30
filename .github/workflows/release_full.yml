@@ -297,6 +297,83 @@ jobs:
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
+      
+      - name: Stage installer files
+        shell: powershell
+        run: |
+          Write-Output "Staging installer files into 'installer_stage'"
+          $stage = Join-Path $PWD 'installer_stage'
+          Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          $releaseDir = Join-Path $PWD 'build\\windows\\x64\\runner\\Release'
+          if (Test-Path $releaseDir) {
+            Copy-Item -Path (Join-Path $releaseDir '*') -Destination $stage -Recurse -Force
+          } else {
+            Write-Output "No windows Release dir found at $releaseDir"
+          }
+          $appBin = Join-Path $PWD 'app\\bin'
+          if (Test-Path $appBin) {
+            Copy-Item -Path (Join-Path $appBin '*') -Destination (Join-Path $stage 'app\\bin') -Recurse -Force
+          }
+          if (Test-Path 'assets\\icon.ico') { Copy-Item -Path 'assets\\icon.ico' -Destination $stage -Force }
+          if (Test-Path 'assets\\app_icon.png') { Copy-Item -Path 'assets\\app_icon.png' -Destination $stage -Force }
+          Add-Content -Path $env:GITHUB_ENV -Value "INSTALLER_STAGE=$stage"
+
+      - name: Install NSIS
+        shell: powershell
+        id: install-nsis
+        run: |
+          Write-Output "Ensure NSIS is installed"
+          $nsisCmd = Get-Command makensis -ErrorAction SilentlyContinue
+          if (-not $nsisCmd) {
+            choco install nsis -y
+            $refresh = (Join-Path $env:ChocolateyInstall 'helpers\refreshenv.cmd')
+            if (Test-Path $refresh) { & $refresh } else { Start-Sleep -Seconds 2 }
+          }
+          $nsisPath = $null
+          $nsisCmd = Get-Command makensis -ErrorAction SilentlyContinue
+          if ($nsisCmd) { $nsisPath = $nsisCmd.Path }
+          $candidates = @(
+            (Join-Path $env:ProgramFiles 'NSIS\\makensis.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'NSIS\\makensis.exe'),
+            (Join-Path $env:ProgramData 'chocolatey\\bin\\makensis.exe'),
+            (Join-Path $env:ProgramData 'chocolatey\\lib\\nsis\\tools\\makensis.exe'),
+            (Join-Path $env:ChocolateyInstall 'bin\\makensis.exe')
+          )
+          foreach ($p in $candidates) {
+            if (-not $nsisPath -and (Test-Path $p)) { $nsisPath = $p; break }
+          }
+          if (-not $nsisPath) {
+            Write-Error "makensis not found after installation. Checked: $($candidates -join ';')"
+            exit 1
+          }
+          Write-Output "Found makensis at $nsisPath"
+          Add-Content -Path $env:GITHUB_ENV -Value "MAKENSIS_PATH=$nsisPath"
+          & $nsisPath -VERSION
+
+      - name: Build Windows NSIS installer
+        shell: powershell
+        run: |
+          $installerName = "picoclaw_fui-${env:RELEASE_BASE}-windows-x64-installer.exe"
+          $nsisPath = $env:MAKENSIS_PATH
+          if (-not $nsisPath) {
+            $cmd = Get-Command makensis -ErrorAction SilentlyContinue
+            if ($cmd) { $nsisPath = $cmd.Path } else { Write-Error "makensis not found"; exit 1 }
+          }
+          Write-Output "Using makensis: $nsisPath"
+          $contentsDir = $env:INSTALLER_STAGE
+          if (-not $contentsDir) { $contentsDir = Join-Path $PWD 'installer_stage' }
+          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" /DCONTENTS_DIR="$contentsDir" /DLAUNCHER="picoclaw_flutter_ui.exe" /DOUTPUT_DIR="${env:GITHUB_WORKSPACE}" ".github/picoclaw_installer_fixed.nsi"
+          if (-not (Test-Path $installerName)) {
+            Write-Error "Installer build failed: $installerName"
+            exit 1
+          }
+
+      - name: Upload Windows NSIS installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
+          path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -455,5 +532,6 @@ jobs:
             picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
             picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
             picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
+            picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
