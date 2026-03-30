@@ -1,4 +1,5 @@
 !include MUI2.nsh
+Var IconPath
 
 !ifndef RELEASE_BASE
   !define RELEASE_BASE "unknown"
