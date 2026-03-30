@@ -20,6 +20,18 @@ class WebViewPage extends StatefulWidget {
   State<WebViewPage> createState() => _WebViewPageState();
 }
 
+// Provide a lightweight getter on the widget to expose a webview-friendly URL.
+// This avoids adding widget parameters while keeping the logic local to UI code.
+extension WebViewPageWebviewUrl on WebViewPage {
+  String get webviewUrl {
+    try {
+      final u = Uri.parse(url);
+      if (u.host == '0.0.0.0') return u.replace(host: '127.0.0.1').toString();
+    } catch (_) {}
+    return url;
+  }
+}
+
 class _WebViewPageState extends State<WebViewPage> {
   // Mobile
   WebViewController? _mobileController;
@@ -104,15 +116,14 @@ class _WebViewPageState extends State<WebViewPage> {
           ),
         );
 
-      // Load the URL, replacing 0.0.0.0 with 127.0.0.1 for local access
-      final targetUrl = widget.url.replaceFirst('0.0.0.0', '127.0.0.1');
-      _mobileController!.loadRequest(Uri.parse(targetUrl));
+      // Load the URL using widget.webviewUrl which normalizes 0.0.0.0 to loopback
+      _mobileController!.loadRequest(Uri.parse(widget.webviewUrl));
     } else if (Platform.isWindows) {
-      _initWindowsWebView();
+      _initWindowsWebView(widget.webviewUrl);
     }
   }
 
-  Future<void> _initWindowsWebView() async {
+  Future<void> _initWindowsWebView(String webviewUrl) async {
     try {
       _winController ??= win_wv.WebviewController();
       await _winController!.initialize();
@@ -219,7 +230,7 @@ class _WebViewPageState extends State<WebViewPage> {
         });
       });
 
-      await _winController!.loadUrl(widget.url);
+      await _winController!.loadUrl(webviewUrl);
       if (mounted) {
         setState(() {
           _winReady = true;
@@ -252,7 +263,7 @@ class _WebViewPageState extends State<WebViewPage> {
       _winError = false;
       _winBlankCount = 0;
     });
-    await _initWindowsWebView();
+    await _initWindowsWebView(widget.webviewUrl);
   }
 
   @override
@@ -522,7 +533,6 @@ class _WebViewPageState extends State<WebViewPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: colorScheme.secondary.withAlpha(
                     ((0.05).clamp(0.0, 1.0) * 255).round(),
@@ -755,7 +765,7 @@ class _WebViewPageState extends State<WebViewPage> {
               SizedBox(
                 height: 56,
                 child: ElevatedButton.icon(
-                  onPressed: () => launchUrl(Uri.parse(widget.url)),
+                  onPressed: () => launchUrl(Uri.parse(widget.webviewUrl)),
                   icon: const Icon(Remix.external_link_line),
                   label: Text(
                     'Open Admin Panel'.toUpperCase(),

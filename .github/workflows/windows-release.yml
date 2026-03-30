@@ -23,7 +23,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -85,7 +85,7 @@ jobs:
           Compress-Archive -Path 'build\\windows\\x64\\runner\\Release\\*' -DestinationPath $dest -Force
 
       - name: Upload Windows ZIP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip

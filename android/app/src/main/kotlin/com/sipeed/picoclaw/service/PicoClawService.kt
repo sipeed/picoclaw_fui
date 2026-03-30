@@ -313,7 +313,7 @@ class PicoClawService : Service() {
             "--console",
             "--no-browser"
         )
-        
+
         // 只有在公共模式开启时才添加 -public 参数
         if (publicMode) {
             cmdList.add("-public")
@@ -321,9 +321,9 @@ class PicoClawService : Service() {
         } else {
             Log.i(TAG, "Public mode disabled, service will listen on localhost only")
         }
-        
+
         cmdList.addAll(listOf("-port", WEB_PORT.toString(), configFile.absolutePath))
-        
+
         val pb = ProcessBuilder(cmdList)
             .directory(filesDir)
             .redirectErrorStream(true)

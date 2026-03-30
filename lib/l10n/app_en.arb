@@ -72,4 +72,22 @@
       "code": {}
     }
   }
+
+  ,
+  "noLogsToExport": "No logs to export",
+  "logsSavedToMediaLibrary": "Logs saved to Downloads (Android media library)",
+  "logsSavedToDownloads": "Logs saved to Downloads: {path}",
+  "@logsSavedToDownloads": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "shareLogsText": "Picoclaw logs"
+  ,
+  "logsSavedToMediaLibraryWithName": "Logs saved to Downloads (Android media library): {name}",
+  "@logsSavedToMediaLibraryWithName": {
+    "placeholders": {"name": {}}
+  },
+  "shareFailed": "Failed to open share dialog: {error}",
+  "@shareFailed": {"placeholders": {"error": {}}}
 }

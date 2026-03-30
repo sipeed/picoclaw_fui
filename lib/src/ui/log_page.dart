@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -172,6 +174,11 @@ class _LogPageState extends State<LogPage> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Export logs',
+            icon: const Icon(Icons.download),
+            onPressed: _exportLogs,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: Center(
@@ -192,6 +199,145 @@ class _LogPageState extends State<LogPage> {
           ? _buildTvLogContainer(context, logContent, colorScheme)
           : _buildDesktopLogContainer(context, logContent, colorScheme),
     );
+  }
+
+  Future<void> _exportLogs() async {
+    try {
+      final service = context.read<ServiceManager>();
+      final logs = service.logs;
+      final l10n = AppLocalizations.of(context)!;
+      if (logs.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.noLogsToExport)));
+        return;
+      }
+
+      final content = logs.join('\n');
+      String downloadsDir;
+      if (Platform.isWindows) {
+        final userProfile = Platform.environment['USERPROFILE'] ?? '';
+        downloadsDir = userProfile.isNotEmpty ? '$userProfile\\Downloads' : '.';
+      } else {
+        final home = Platform.environment['HOME'] ?? '';
+        downloadsDir = home.isNotEmpty ? '$home/Downloads' : '.';
+      }
+
+      final ts = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final filename = 'picoclaw_logs_$ts.txt';
+
+      // Platform-specific save
+      String savedPath = '';
+      if (Platform.isAndroid) {
+        // Use platform MethodChannel to write via MediaStore
+        try {
+          final bytes = Uint8List.fromList(content.codeUnits);
+          final channel = MethodChannel('com.sipeed.picoclaw/picoclaw');
+          final res = await channel.invokeMethod<String>('saveToDownloads', {
+            'filename': filename,
+            'bytes': bytes,
+          });
+          if (res != null) savedPath = res;
+        } catch (_) {}
+      }
+
+      var isContentUri = savedPath.startsWith('content://');
+      File? file;
+      if (savedPath.isEmpty) {
+        // Fallback: save to user Downloads (desktop / iOS / fallback on Android)
+        final filePath = '$downloadsDir${Platform.pathSeparator}$filename';
+        file = File(filePath);
+        if (!await file.parent.exists()) {
+          try {
+            await file.parent.create(recursive: true);
+          } catch (_) {}
+        }
+        await file.writeAsString(content);
+        savedPath = file.path;
+        isContentUri = false;
+      } else if (!isContentUri) {
+        // Native returned a real filesystem path
+        file = File(savedPath);
+      }
+
+      // Notify user with a human-friendly message
+      if (mounted) {
+        final friendlyLocation = isContentUri
+            ? l10n.logsSavedToMediaLibraryWithName(filename)
+            : l10n.logsSavedToDownloads(file?.path ?? savedPath);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(friendlyLocation)));
+      }
+
+      try {
+        // Handle case when we have a filesystem path first (applies to all platforms)
+        if (file != null) {
+          if (Platform.isWindows) {
+            await Process.run('explorer', ['/select,${file.path}']);
+          } else if (Platform.isMacOS) {
+            await Process.run('open', ['-R', file.path]);
+          } else if (Platform.isLinux) {
+            await Process.run('xdg-open', [file.parent.path]);
+          } else {
+            // Mobile platforms: share the actual file
+            final params = ShareParams(
+              text: l10n.shareLogsText,
+              files: [XFile(file.path)],
+            );
+            await SharePlus.instance.share(params);
+          }
+        } else if (isContentUri) {
+          // We received a content:// URI (Android MediaStore) — share via XFile with URI
+          try {
+            // Try to copy content URI to app cache so share_plus can access it reliably
+            final channel = MethodChannel('com.sipeed.picoclaw/picoclaw');
+            String? cachePath;
+            try {
+              cachePath = await channel.invokeMethod<String>(
+                'copyContentUriToCache',
+                {'uri': savedPath, 'filename': filename},
+              );
+            } catch (_) {
+              cachePath = null;
+            }
+
+            final shareFile = (cachePath != null && cachePath.isNotEmpty)
+                ? XFile(cachePath)
+                : XFile(savedPath);
+            final params = ShareParams(
+              text: l10n.shareLogsText,
+              files: [shareFile],
+            );
+            await SharePlus.instance.share(params);
+          } catch (e) {
+            // Provide user-visible error if share failed and log for debugging
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.shareFailed(e.toString()))),
+              );
+            }
+            // also print to console to help with debugging on device
+            // ignore: avoid_print
+            print('Share failed for content URI $savedPath: $e');
+          }
+        } else {
+          // No specific file or content URI — try to open containing folder when possible
+          if (!Platform.isAndroid && !Platform.isIOS) {
+            final folder = File(savedPath).parent.path;
+            await Process.run('xdg-open', [folder]);
+          }
+        }
+      } catch (e) {
+        // ignore external invocation/share errors; user already informed of saved location
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to export logs: $e')));
+      }
+    }
   }
 
   // TV 平台：使用 TVFocusable 包装，保持焦点样式一致

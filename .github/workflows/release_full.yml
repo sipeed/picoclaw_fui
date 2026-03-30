@@ -22,14 +22,15 @@ env:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    environment: production
     outputs:
       release_base: ${{ steps.vars.outputs.release_base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -57,7 +58,7 @@ jobs:
           channel: 'stable'
 
       - name: Cache pub and Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.pub-cache
@@ -73,17 +74,44 @@ jobs:
         run: |
           yes | sdkmanager --licenses || true
 
-      - name: Build Android AAB, fetch/install core, and package
+      - name: Setup Android Signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
+            echo "KEYSTORE_PATH=android/app/keystore.jks" >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> $GITHUB_ENV
+            echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$KEY_PASSWORD" >> $GITHUB_ENV
+            echo "Android signing configured"
+          else
+            echo "No signing configuration found, using debug signature"
+          fi
+
+      - name: fetch/install core
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform android --arch arm64 --build-mode release --install-to-build
 
-      - name: Build Android APK (debug) and fetch/install core
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Android App Bundle (AAB)
+        run: flutter build appbundle --release --target-platform android-arm,android-arm64
+
+      - name: Build Android APK (release)
+        run: flutter build apk --release --target-platform android-arm,android-arm64
+
+
+      - name: Verify APK Signature
+        if: env.KEYSTORE_PATH != ''
         run: |
-          flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform android --arch arm64 --build-mode debug --install-to-build
+          echo "Verifying APK signature..."
+          BUILD_TOOLS=$(ls -d $ANDROID_SDK_ROOT/build-tools/*/ | sort -V | tail -n 1)
+          $BUILD_TOOLS/apksigner verify -v build/app/outputs/flutter-apk/app-release.apk || true
+          echo "Signature verification completed"
 
       - name: Prepare release metadata
         id: vars
@@ -109,25 +137,31 @@ jobs:
           else
             echo "AAB not found"; exit 1
           fi
-          if [ -f build/app/outputs/flutter-apk/app-debug.apk ]; then
-            cp build/app/outputs/flutter-apk/app-debug.apk "$APK_NAME"
+          if [ -f build/app/outputs/flutter-apk/app-release.apk ]; then
+            cp build/app/outputs/flutter-apk/app-release.apk "$APK_NAME"
           else
-            echo "Debug APK not found"; exit 1
+            echo "Release APK not found"; exit 1
           fi
 
       # core binaries are installed into build outputs; avoid uploading app/bin
 
       - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
+
+      - name: Cleanup signing keys
+        if: always()
+        run: |
+          rm -f android/app/keystore.jks
+          echo "Signing keys cleaned up"
 
   build-macos:
     runs-on: macos-latest
@@ -136,7 +170,7 @@ jobs:
       release_base: ${{ steps.vars.outputs.release_base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -171,16 +205,17 @@ jobs:
           if [ ! -d "$out_dir" ]; then
             echo "Release output not found"; exit 1
           fi
-          app_path=$(find "$out_dir" -maxdepth 1 -name "*.app" -print -quit)
+          app_path="$out_dir"/app/bin
           if [ -z "$app_path" ]; then
             echo "No .app found in $out_dir"; ls -la "$out_dir" || true; exit 1
           fi
           stage_dir=$(mktemp -d)
           cp -R "$app_path" "$stage_dir/"
+          ln -s /Applications "$stage_dir/Applications"
           hdiutil create -volname "PicoClawFUI" -srcfolder "$stage_dir" -ov -format UDZO "$dest"
 
       - name: Upload macOS DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
@@ -192,7 +227,7 @@ jobs:
       release_base: ${{ steps.vars.outputs.release_base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -231,12 +266,19 @@ jobs:
           if (-not (Get-Command nuget -ErrorAction SilentlyContinue)) { choco install nuget.commandline -y }
           nuget help
 
-      - name: Build Windows release (build + fetch/install core)
+      - name: Fetch Windows core binaries
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform windows --arch x86_64 --build-mode release --install-to-build
+
+      - name: Build Windows release (build + fetch/install core)
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flutter build windows --release
 
       - name: Prepare release metadata
         id: vars
@@ -259,7 +301,7 @@ jobs:
       # core binaries are installed into build outputs; avoid uploading app/bin
 
       - name: Upload Windows ZIP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
@@ -270,7 +312,7 @@ jobs:
       release_base: ${{ steps.vars.outputs.release_base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -286,7 +328,7 @@ jobs:
             lld binutils libstdc++-12-dev libglu1-mesa
 
       - name: Cache pub
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.pub-cache
@@ -382,7 +424,7 @@ jobs:
           dpkg-deb --build "$PKGROOT" "$DEST"
 
       - name: Upload Linux .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
           path: picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
@@ -392,10 +434,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: downloaded_artifacts
 

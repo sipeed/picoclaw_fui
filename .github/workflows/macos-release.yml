@@ -26,7 +26,7 @@ jobs:
         arch: [arm64, x86_64]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -53,16 +53,17 @@ jobs:
           if [ ! -d "$out_dir" ]; then
             echo "Release output not found"; exit 1
           fi
-          app_path=$(find "$out_dir" -maxdepth 1 -name "*.app" -print -quit)
+          app_path="$out_dir"/app/bin
           if [ -z "$app_path" ]; then
             echo "No .app found in $out_dir"; ls -la "$out_dir" || true; exit 1
           fi
           stage_dir=$(mktemp -d)
           cp -R "$app_path" "$stage_dir/"
+          ln -s /Applications "$stage_dir/Applications"
           hdiutil create -volname "PicoClawFUI" -srcfolder "$stage_dir" -ov -format UDZO "$dest"
 
       - name: Upload macOS DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: picoclaw_fui-macos-${{ matrix.arch }}
           path: picoclaw_fui-*-macos-${{ matrix.arch }}.dmg

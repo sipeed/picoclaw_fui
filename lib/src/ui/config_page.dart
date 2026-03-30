@@ -232,7 +232,11 @@ class _ConfigPageState extends State<ConfigPage> {
               focusNode: _portFocusNode,
               label: l10n.port,
               keyboardType: TextInputType.number,
-              nextFocusNode: (!Platform.isWindows && !Platform.isAndroid)
+              nextFocusNode:
+                  (!Platform.isWindows &&
+                      !Platform.isAndroid &&
+                      !Platform.isMacOS &&
+                      !Platform.isLinux)
                   ? _pathFocusNode
                   : _argsFocusNode,
               prevFocusNode: _hostFocusNode,
@@ -240,7 +244,10 @@ class _ConfigPageState extends State<ConfigPage> {
             ),
             const SizedBox(height: 16),
 
-            if (!Platform.isWindows && !Platform.isAndroid)
+            if (!Platform.isWindows &&
+                !Platform.isAndroid &&
+                !Platform.isMacOS &&
+                !Platform.isLinux)
               Row(
                 children: [
                   Expanded(

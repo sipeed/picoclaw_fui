@@ -469,6 +469,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'1. Start the service\n2. Scan QR code to access PicoClaw'**
   String get publicModeHint;
+
+  /// No description provided for @noLogsToExport.
+  ///
+  /// In en, this message translates to:
+  /// **'No logs to export'**
+  String get noLogsToExport;
+
+  /// No description provided for @logsSavedToMediaLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs saved to Downloads (Android media library)'**
+  String get logsSavedToMediaLibrary;
+
+  /// No description provided for @logsSavedToDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs saved to Downloads: {path}'**
+  String logsSavedToDownloads(Object path);
+
+  /// No description provided for @shareLogsText.
+  ///
+  /// In en, this message translates to:
+  /// **'Picoclaw logs'**
+  String get shareLogsText;
+
+  /// No description provided for @logsSavedToMediaLibraryWithName.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs saved to Downloads (Android media library): {name}'**
+  String logsSavedToMediaLibraryWithName(Object name);
+
+  /// No description provided for @shareFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open share dialog: {error}'**
+  String shareFailed(Object error);
 }
 
 class _AppLocalizationsDelegate
