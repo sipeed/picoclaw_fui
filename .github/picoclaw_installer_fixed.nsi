@@ -20,7 +20,11 @@ Var IconPath
 !endif
 
 Name "${APP_NAME}"
-OutFile "picoclaw_fui-${RELEASE_BASE}-windows-x64-installer.exe"
+; Allow CI to override output directory
+!ifndef OUTPUT_DIR
+  !define OUTPUT_DIR "."
+!endif
+OutFile "${OUTPUT_DIR}\\picoclaw_fui-${RELEASE_BASE}-windows-x64-installer.exe"
 InstallDir "${INSTALL_DIR_D}"
 InstallDirRegKey HKLM "${REGKEY_UNINSTALL}" "InstallLocation"
 RequestExecutionLevel admin
@@ -34,6 +38,19 @@ Function .onInit
     Goto done
   StrCpy $INSTDIR "${INSTALL_DIR_PF}"
   done:
+  ; No-op references to MUI variables to avoid 6001 warnings
+  StrCpy $R0 $mui.Header.Text
+  StrCpy $R0 $mui.Header.Text.Font
+  StrCpy $R0 $mui.Header.SubText
+  StrCpy $R0 $mui.Header.Background
+  StrCpy $R0 $mui.Header.Image
+  StrCpy $R0 $mui.Branding.Text
+  StrCpy $R0 $mui.Branding.Background
+  StrCpy $R0 $mui.Line.Standard
+  StrCpy $R0 $mui.Line.FullWindow
+  StrCpy $R0 $mui.Button.Next
+  StrCpy $R0 $mui.Button.Cancel
+  StrCpy $R0 $mui.Button.Back
 FunctionEnd
 
 Page directory
