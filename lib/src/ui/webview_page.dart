@@ -113,6 +113,14 @@ class _WebViewPageState extends State<WebViewPage> {
                 setState(() => _isLoading = false);
               }
             },
+            onNavigationRequest: (NavigationRequest request) {
+              return NavigationDecision.navigate;
+            },
+            onUrlChange: (UrlChange change) {
+              if (mounted && _isLoading) {
+                setState(() => _isLoading = false);
+              }
+            },
           ),
         );
 
@@ -796,7 +804,7 @@ class _WebViewPageState extends State<WebViewPage> {
       );
     }
 
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (Platform.isAndroid) {
       return Stack(
         key: _webviewStackKey,
         fit: StackFit.expand,
@@ -841,7 +849,55 @@ class _WebViewPageState extends State<WebViewPage> {
                   child: const Center(child: CircularProgressIndicator()),
                 )
               : const SizedBox.shrink(),
-          // Top action bar
+        ],
+      );
+    }
+
+    if (Platform.isIOS) {
+      return Stack(
+        key: _webviewStackKey,
+        fit: StackFit.expand,
+        children: [
+          Container(
+            color: Colors.white,
+            width: double.infinity,
+            height: double.infinity,
+            child: Listener(
+              onPointerDown: (event) {
+                if (event.kind == PointerDeviceKind.mouse &&
+                    event.buttons == kSecondaryMouseButton) {
+                  // Block right-click context menu
+                }
+              },
+              child: _mobileController == null
+                  ? Container(
+                      color: Colors.grey[200],
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.web, size: 48, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text('Initializing WebView...'),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SizedBox.expand(
+                      child: WebViewWidget(controller: _mobileController!),
+                    ),
+            ),
+          ),
+          _isLoading
+              ? Container(
+                  color: Colors.black.withAlpha((0.1 * 255).round()),
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: const Center(child: CircularProgressIndicator()),
+                )
+              : const SizedBox.shrink(),
           buildWebViewActions(
             onBack: () async {
               if (_mobileController != null &&
