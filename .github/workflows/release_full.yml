@@ -437,7 +437,7 @@ jobs:
           Write-Output "Using makensis: $nsisPath"
           $contentsDir = $env:INSTALLER_STAGE
           if (-not $contentsDir) { $contentsDir = Join-Path $PWD 'installer_stage' }
-          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" /DCONTENTS_DIR="$contentsDir" /DLAUNCHER="picoclaw_flutter_ui.exe" /DOUTPUT_DIR="${env:GITHUB_WORKSPACE}" ".github/picoclaw_installer_fixed.nsi"
+          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" /DCONTENTS_DIR="$contentsDir" /DLAUNCHER="picoclaw_flutter_ui.exe" /DOUTPUT_DIR="${env:GITHUB_WORKSPACE}" /DOUTPUT_NAME="$installerName" ".github/picoclaw_installer_fixed.nsi"
           if (-not (Test-Path $installerName)) {
             Write-Error "Installer build failed: $installerName"
             exit 1

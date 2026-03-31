@@ -19,12 +19,16 @@ Var IconPath
   !define LAUNCHER "picoclaw_flutter_ui.exe"
 !endif
 
+!ifndef OUTPUT_NAME
+  !define OUTPUT_NAME "picoclaw_fui-${RELEASE_BASE}-windows-x64-installer.exe"
+!endif
+
 Name "${APP_NAME}"
 ; Allow CI to override output directory
 !ifndef OUTPUT_DIR
   !define OUTPUT_DIR "."
 !endif
-OutFile "${OUTPUT_DIR}\picoclaw_fui-${RELEASE_BASE}-windows-x64-installer.exe"
+OutFile "${OUTPUT_DIR}\${OUTPUT_NAME}"
 InstallDir "${INSTALL_DIR_D}"
 InstallDirRegKey HKLM "${REGKEY_UNINSTALL}" "InstallLocation"
 RequestExecutionLevel admin
