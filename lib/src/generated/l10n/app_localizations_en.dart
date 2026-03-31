@@ -148,6 +148,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unableToGetDeviceIp => 'Unable to get device IP';
 
   @override
+  String get deviceReportingTitle => 'Device compatibility feedback';
+
+  @override
+  String get deviceReportingSubtitle =>
+      'Used only for OS-version and app-version compatibility checks. No chat messages, account details, or personal content are involved';
+
+  @override
+  String get deviceReportingConsentTitle => 'Help improve device compatibility';
+
+  @override
+  String get deviceReportingConsentDescription =>
+      'When enabled, only an anonymous installation ID, OS version, and app version are sent to understand compatibility. Language and region can be collected by Firebase Analytics separately. No chat messages, typed content, account details, files, or custom settings are uploaded';
+
+  @override
+  String get deviceReportingBannerDescription =>
+      'Only an anonymous installation ID, OS version, and app version are synced to improve compatibility. Language and region may be collected separately by Firebase Analytics. No chat messages, account details, files, or personal content are sent';
+
+  @override
+  String get deviceReportingWhatWillBeSent =>
+      'Only these device details are included';
+
+  @override
+  String get deviceReportingDeviceLabel => 'Device Model';
+
+  @override
+  String get deviceReportingPlatformLabel => 'Device Category';
+
+  @override
+  String get deviceReportingSystemLabel => 'OS Version';
+
+  @override
+  String get deviceReportingTimingNote =>
+      'A sync runs once when enabled, and again only after a system update is detected';
+
+  @override
+  String get deviceReportingDeny => 'Not now';
+
+  @override
+  String get deviceReportingAllow => 'Turn on';
+
+  @override
+  String get deviceReportingUploadSucceeded =>
+      'Device compatibility feedback is on';
+
+  @override
+  String get deviceReportingUploadFailed =>
+      'Device compatibility feedback is on, but the current device-info sync did not complete';
+
+  @override
+  String get deviceReportingDisabled => 'Device compatibility feedback is off';
+
+  @override
   String get localModeHint =>
       '1. Go to Service Config\n2. Turn on Public Mode\n3. Restart the service\n4. Scan QR code to access PicoClaw';
 

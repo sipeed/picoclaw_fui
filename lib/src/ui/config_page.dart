@@ -33,7 +33,9 @@ class _ConfigPageState extends State<ConfigPage> {
   final _browseFocusNode = FocusNode();
   final _checkFocusNode = FocusNode();
   final _argsFocusNode = FocusNode();
+  final _firebaseFocusNode = FocusNode();
   final List<FocusNode> _themeFocusNodes = [];
+  bool _firebaseAllowed = false;
 
   @override
   void initState() {
@@ -49,6 +51,7 @@ class _ConfigPageState extends State<ConfigPage> {
   Future<void> _loadConfig() async {
     // 统一从 ServiceManager 加载配置，所有平台使用相同方式
     final service = context.read<ServiceManager>();
+    final allowed = await service.isDeviceFeedbackAllowed();
     if (mounted) {
       setState(() {
         // 如果publicMode为true，显示0.0.0.0，否则显示ServiceManager中的host
@@ -56,6 +59,7 @@ class _ConfigPageState extends State<ConfigPage> {
         _portController.text = service.port.toString();
         _pathController.text = service.binaryPath;
         _argsController.text = service.arguments;
+        _firebaseAllowed = allowed;
       });
     }
   }
@@ -75,6 +79,7 @@ class _ConfigPageState extends State<ConfigPage> {
     _browseFocusNode.dispose();
     _checkFocusNode.dispose();
     _argsFocusNode.dispose();
+    _firebaseFocusNode.dispose();
     for (final node in _themeFocusNodes) {
       node.dispose();
     }
@@ -131,6 +136,39 @@ class _ConfigPageState extends State<ConfigPage> {
   void _togglePublicModeFromFocus() {
     final service = context.read<ServiceManager>();
     _togglePublicMode(!service.publicMode);
+  }
+
+  Future<void> _toggleFirebase(BuildContext context) async {
+    final service = context.read<ServiceManager>();
+    final newValue = !_firebaseAllowed;
+    final l10n = AppLocalizations.of(context)!;
+
+    debugPrint(
+      '[ConfigPage] Toggling device feedback: newValue=$newValue (current=$_firebaseAllowed)',
+    );
+
+    if (newValue) {
+      debugPrint('[ConfigPage] Enabling device feedback...');
+      await service.setDeviceFeedbackUploadAllowed(true);
+      setState(() {
+        _firebaseAllowed = true;
+      });
+      debugPrint('[ConfigPage] Triggering background upload...');
+      service.triggerDeviceFeedbackUploadInBackground();
+    } else {
+      debugPrint('[ConfigPage] Disabling device feedback...');
+      await service.setDeviceFeedbackUploadAllowed(false);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.deviceReportingDisabled)));
+    }
+
+    if (!newValue) {
+      setState(() {
+        _firebaseAllowed = false;
+      });
+    }
   }
 
   @override
@@ -334,9 +372,7 @@ class _ConfigPageState extends State<ConfigPage> {
               focusNode: _argsFocusNode,
               label: l10n.arguments,
               hint: l10n.argumentsHint,
-              nextFocusNode: _themeFocusNodes.isNotEmpty
-                  ? _themeFocusNodes.first
-                  : _argsFocusNode,
+              nextFocusNode: _firebaseFocusNode,
               prevFocusNode: (!Platform.isWindows && !Platform.isAndroid)
                   ? _checkFocusNode
                   : _portFocusNode,
@@ -344,7 +380,18 @@ class _ConfigPageState extends State<ConfigPage> {
             ),
             const SizedBox(height: 24),
 
-            // Theme selection
+            if (service.isDeviceFeedbackEnabled)
+              DeviceFeedbackToggle(
+                focusNode: _firebaseFocusNode,
+                isAllowed: _firebaseAllowed,
+                statusMessage: service.lastDeviceFeedbackSyncMessage,
+                onToggle: () => _toggleFirebase(context),
+                onArrowDown: () => _themeFocusNodes.isNotEmpty
+                    ? _themeFocusNodes.first.requestFocus()
+                    : _firebaseFocusNode.requestFocus(),
+                onArrowUp: () => _argsFocusNode.requestFocus(),
+              ),
+
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 16),
@@ -385,7 +432,7 @@ class _ConfigPageState extends State<ConfigPage> {
                             .requestFocus();
                       }
                     },
-                    onArrowUp: () => _argsFocusNode.requestFocus(),
+                    onArrowUp: () => _firebaseFocusNode.requestFocus(),
                   );
                 }).toList(),
               ),
@@ -912,6 +959,206 @@ class _ThemeButtonState extends State<ThemeButton> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DeviceFeedbackToggle extends StatefulWidget {
+  final FocusNode focusNode;
+  final bool isAllowed;
+  final String? statusMessage;
+  final VoidCallback onToggle;
+  final VoidCallback onArrowDown;
+  final VoidCallback onArrowUp;
+
+  const DeviceFeedbackToggle({
+    super.key,
+    required this.focusNode,
+    required this.isAllowed,
+    this.statusMessage,
+    required this.onToggle,
+    required this.onArrowDown,
+    required this.onArrowUp,
+  });
+
+  @override
+  State<DeviceFeedbackToggle> createState() => _DeviceFeedbackToggleState();
+}
+
+class _DeviceFeedbackToggleState extends State<DeviceFeedbackToggle> {
+  bool _isFocused = false;
+  bool _hasUserToggled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (mounted) {
+      setState(() {
+        _isFocused = widget.focusNode.hasFocus;
+      });
+    }
+  }
+
+  void _handleToggle() {
+    if (!_hasUserToggled) {
+      setState(() {
+        _hasUserToggled = true;
+      });
+    }
+    widget.onToggle();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Focus(
+      focusNode: widget.focusNode,
+      canRequestFocus: true,
+      descendantsAreFocusable: false,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            widget.onArrowDown();
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            widget.onArrowUp();
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.select ||
+              event.logicalKey == LogicalKeyboardKey.enter) {
+            _handleToggle();
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: GestureDetector(
+        onTap: _handleToggle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: _isFocused
+                ? Theme.of(context).colorScheme.secondary.withAlpha(40)
+                : null,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _isFocused
+                  ? Theme.of(context).colorScheme.secondary
+                  : Theme.of(context).dividerColor,
+              width: _isFocused ? 2 : 1,
+            ),
+            boxShadow: _isFocused
+                ? [
+                    BoxShadow(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.secondary.withAlpha(40),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _isFocused
+                      ? Theme.of(context).colorScheme.secondary.withAlpha(40)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  widget.isAllowed ? Icons.analytics : Icons.analytics_outlined,
+                  color: _isFocused
+                      ? Theme.of(context).colorScheme.secondary
+                      : Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.deviceReportingTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: _isFocused
+                            ? Theme.of(context).colorScheme.secondary
+                            : null,
+                        fontWeight: _isFocused
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    Text(
+                      l10n.deviceReportingSubtitle,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (widget.statusMessage != null &&
+                        widget.statusMessage!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.statusMessage!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Container(
+                width: 48,
+                height: 28,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: widget.isAllowed
+                      ? Theme.of(context).colorScheme.secondary
+                      : Theme.of(context).colorScheme.secondary.withAlpha(100),
+                ),
+                child: AnimatedAlign(
+                  duration: Duration(milliseconds: _hasUserToggled ? 200 : 0),
+                  alignment: widget.isAllowed
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    margin: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Theme.of(context).colorScheme.surface,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(30),
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

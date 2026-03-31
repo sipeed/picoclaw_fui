@@ -5,6 +5,16 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  PICOCLAW_FLUTTER_BUILD_ARGS: >-
+    --dart-define=PICOCLAW_ANALYTICS_PROVIDER=firebase
+    --dart-define=PICOCLAW_FIREBASE_APP_ID=${{ secrets.PICOCLAW_FIREBASE_APP_ID }}
+    --dart-define=PICOCLAW_FIREBASE_API_KEY=${{ secrets.PICOCLAW_FIREBASE_API_KEY }}
+    --dart-define=PICOCLAW_FIREBASE_PROJECT_ID=${{ secrets.PICOCLAW_FIREBASE_PROJECT_ID }}
+    --dart-define=PICOCLAW_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.PICOCLAW_FIREBASE_MESSAGING_SENDER_ID }}
+    --dart-define=PICOCLAW_UMENG_APP_KEY=${{ secrets.PICOCLAW_UMENG_APP_KEY }}
+    --dart-define=PICOCLAW_UMENG_CHANNEL=${{ secrets.PICOCLAW_UMENG_CHANNEL }}
+
 jobs:
   build-linux-deb:
     runs-on: ubuntu-22.04
@@ -45,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform linux --arch x86_64 --build-mode release --install-to-build || true
-          flutter build linux --release
+          flutter build linux --release $PICOCLAW_FLUTTER_BUILD_ARGS
 
       - name: Package Linux as .deb
         id: package

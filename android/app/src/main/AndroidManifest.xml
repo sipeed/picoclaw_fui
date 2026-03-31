@@ -4,6 +4,9 @@
     <!-- 网络访问 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- 友盟统计需要 - 获取设备信息 -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <!-- 前台服务 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -70,6 +73,23 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        
+        <!-- 友盟统计配置 - 从 build.gradle 的 buildConfigField 读取 -->
+        <meta-data
+            android:name="UMENG_APPKEY"
+            android:value="${PICOCLAW_UMENG_APP_KEY}" />
+        <meta-data
+            android:name="UMENG_CHANNEL"
+            android:value="${PICOCLAW_UMENG_CHANNEL}" />
+        
+        <!-- Firebase Analytics Configuration - 必须配置才能启用 Analytics -->
+        <!-- 从 Firebase Console 的 google-services.json 获取这些值 -->
+        <meta-data
+            android:name="com.google.android.gms.google_app_id"
+            android:value="@string/google_app_id" />
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="@string/google_app_id" />
     </application>
 
     <queries>

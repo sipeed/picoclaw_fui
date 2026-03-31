@@ -96,6 +96,8 @@ class _MainShellState extends State<MainShell>
   int _selectedIndex = 0;
   ServiceManager? _serviceManager;
 
+  bool get _supportsTray => !Platform.isAndroid && !Platform.isIOS;
+
   void _onServiceChanged() {
     if (!mounted) return;
     _initTray();
@@ -105,7 +107,9 @@ class _MainShellState extends State<MainShell>
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    trayManager.addListener(this);
+    if (_supportsTray) {
+      trayManager.addListener(this);
+    }
     // Defer tray init to didChangeDependencies where `context` and
     // inherited widgets (localizations) are available.
   }
@@ -115,7 +119,7 @@ class _MainShellState extends State<MainShell>
     super.didChangeDependencies();
     if (_serviceManager == null) {
       _serviceManager = context.read<ServiceManager>();
-      if (!Platform.isAndroid && !Platform.isIOS) {
+      if (_supportsTray) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _initTray());
         _serviceManager!.addListener(_onServiceChanged);
       }
@@ -324,7 +328,9 @@ class _MainShellState extends State<MainShell>
   @override
   void dispose() {
     windowManager.removeListener(this);
-    trayManager.removeListener(this);
+    if (_supportsTray) {
+      trayManager.removeListener(this);
+    }
     if (_serviceManager != null) {
       try {
         _serviceManager!.removeListener(_onServiceChanged);

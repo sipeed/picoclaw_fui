@@ -12,3 +12,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Firebase auto-generated config (contains sensitive data)
+/app/src/main/res/values/strings.xml

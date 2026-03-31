@@ -368,6 +368,96 @@ abstract class AppLocalizations {
   /// **'Unable to get device IP'**
   String get unableToGetDeviceIp;
 
+  /// No description provided for @deviceReportingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device compatibility feedback'**
+  String get deviceReportingTitle;
+
+  /// No description provided for @deviceReportingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Used only for OS-version and app-version compatibility checks. No chat messages, account details, or personal content are involved'**
+  String get deviceReportingSubtitle;
+
+  /// No description provided for @deviceReportingConsentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Help improve device compatibility'**
+  String get deviceReportingConsentTitle;
+
+  /// No description provided for @deviceReportingConsentDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, only an anonymous installation ID, OS version, and app version are sent to understand compatibility. Language and region can be collected by Firebase Analytics separately. No chat messages, typed content, account details, files, or custom settings are uploaded'**
+  String get deviceReportingConsentDescription;
+
+  /// No description provided for @deviceReportingBannerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Only an anonymous installation ID, OS version, and app version are synced to improve compatibility. Language and region may be collected separately by Firebase Analytics. No chat messages, account details, files, or personal content are sent'**
+  String get deviceReportingBannerDescription;
+
+  /// No description provided for @deviceReportingWhatWillBeSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Only these device details are included'**
+  String get deviceReportingWhatWillBeSent;
+
+  /// No description provided for @deviceReportingDeviceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Model'**
+  String get deviceReportingDeviceLabel;
+
+  /// No description provided for @deviceReportingPlatformLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Category'**
+  String get deviceReportingPlatformLabel;
+
+  /// No description provided for @deviceReportingSystemLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'OS Version'**
+  String get deviceReportingSystemLabel;
+
+  /// No description provided for @deviceReportingTimingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A sync runs once when enabled, and again only after a system update is detected'**
+  String get deviceReportingTimingNote;
+
+  /// No description provided for @deviceReportingDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get deviceReportingDeny;
+
+  /// No description provided for @deviceReportingAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get deviceReportingAllow;
+
+  /// No description provided for @deviceReportingUploadSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Device compatibility feedback is on'**
+  String get deviceReportingUploadSucceeded;
+
+  /// No description provided for @deviceReportingUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Device compatibility feedback is on, but the current device-info sync did not complete'**
+  String get deviceReportingUploadFailed;
+
+  /// No description provided for @deviceReportingDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Device compatibility feedback is off'**
+  String get deviceReportingDisabled;
+
   /// No description provided for @localModeHint.
   ///
   /// In en, this message translates to:

@@ -146,6 +146,54 @@ class AppLocalizationsZh extends AppLocalizations {
   String get unableToGetDeviceIp => '无法获取设备IP';
 
   @override
+  String get deviceReportingTitle => '设备兼容反馈';
+
+  @override
+  String get deviceReportingSubtitle =>
+      '仅用于识别操作系统版本与应用版本的兼容性，不涉及聊天消息、账号信息或个人内容';
+
+  @override
+  String get deviceReportingConsentTitle => '帮助改进设备兼容性';
+
+  @override
+  String get deviceReportingConsentDescription =>
+      '开启后仅会发送匿名安装标识、操作系统版本和应用版本，用于判断适配情况。设备语言与区域可能由 Firebase Analytics 单独采集。不会上传聊天消息、输入内容、账号信息、文件或自定义配置';
+
+  @override
+  String get deviceReportingBannerDescription =>
+      '仅同步匿名安装标识、操作系统版本和应用版本，用于改善适配；设备语言与区域可能由 Firebase Analytics 单独采集。不会发送聊天消息、账号、文件或任何个人内容';
+
+  @override
+  String get deviceReportingWhatWillBeSent => '仅包含以下设备信息';
+
+  @override
+  String get deviceReportingDeviceLabel => '设备型号';
+
+  @override
+  String get deviceReportingPlatformLabel => '设备类别';
+
+  @override
+  String get deviceReportingSystemLabel => '系统版本';
+
+  @override
+  String get deviceReportingTimingNote => '仅在开启时同步一次，之后只会在检测到系统更新时再次同步';
+
+  @override
+  String get deviceReportingDeny => '暂不开启';
+
+  @override
+  String get deviceReportingAllow => '开启';
+
+  @override
+  String get deviceReportingUploadSucceeded => '已开启设备兼容反馈';
+
+  @override
+  String get deviceReportingUploadFailed => '已开启设备兼容反馈，当前设备信息同步未完成';
+
+  @override
+  String get deviceReportingDisabled => '已关闭设备兼容反馈';
+
+  @override
   String get localModeHint =>
       '1. 进入服务配置\n2. 打开公共模式\n3. 重启服务\n4. 扫描二维码访问PicoClaw';
 

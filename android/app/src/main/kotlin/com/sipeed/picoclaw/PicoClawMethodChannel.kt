@@ -1,7 +1,7 @@
 package com.sipeed.picoclaw
 
 import android.content.Context
-import android.content.SharedPreferences
+import android.os.Build
 import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -174,6 +174,46 @@ class PicoClawMethodChannel(
                 }
                 "getPicoToken" -> {
                     result.success(PicoClawService.PICO_TOKEN)
+                }
+                "getSafeDeviceInfo" -> {
+                    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                    val deviceCategory = if (context.resources.configuration.smallestScreenWidthDp >= 600) {
+                        "Tablet"
+                    } else {
+                        "Mobile"
+                    }
+                    result.success(mapOf(
+                        "deviceModel" to listOf(Build.MANUFACTURER, Build.MODEL)
+                            .filter { it.isNotBlank() }
+                            .joinToString(" ")
+                            .trim(),
+                        "osVersion" to "Android ${Build.VERSION.RELEASE}",
+                        "deviceCategory" to deviceCategory,
+                        "appVersion" to (packageInfo.versionName ?: "unknown")
+                    ))
+                }
+                "setUmengAnalyticsConsent" -> {
+                    try {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        AnalyticsReporter.submitConsent(context, enabled)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SET_UMENG_CONSENT_FAILED", e.message, null)
+                    }
+                }
+                "uploadUmengDeviceReport" -> {
+                    android.util.Log.d("PicoClawChannel", "=== uploadUmengDeviceReport called ===")
+                    try {
+                        val payload = call.arguments<Map<String, Any?>>() ?: emptyMap()
+                        android.util.Log.d("PicoClawChannel", "Payload received with ${payload.size} fields")
+                        val reportResult = AnalyticsReporter.uploadDeviceReport(context, payload)
+                        android.util.Log.d("PicoClawChannel", "AnalyticsReporter returned: success=${reportResult["success"]}, message=${reportResult["message"]}")
+                        result.success(reportResult)
+                        android.util.Log.d("PicoClawChannel", "=== uploadUmengDeviceReport completed ===")
+                    } catch (e: Exception) {
+                        android.util.Log.e("PicoClawChannel", "uploadUmengDeviceReport failed: ${e.message}", e)
+                        result.error("UPLOAD_UMENG_REPORT_FAILED", e.message, null)
+                    }
                 }
                 "getWebPort" -> {
                     result.success(18800)

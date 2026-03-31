@@ -7,6 +7,14 @@ permissions:
   contents: write
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  PICOCLAW_FLUTTER_BUILD_ARGS: >-
+    --dart-define=PICOCLAW_ANALYTICS_PROVIDER=firebase
+    --dart-define=PICOCLAW_FIREBASE_APP_ID=${{ secrets.PICOCLAW_FIREBASE_APP_ID }}
+    --dart-define=PICOCLAW_FIREBASE_API_KEY=${{ secrets.PICOCLAW_FIREBASE_API_KEY }}
+    --dart-define=PICOCLAW_FIREBASE_PROJECT_ID=${{ secrets.PICOCLAW_FIREBASE_PROJECT_ID }}
+    --dart-define=PICOCLAW_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.PICOCLAW_FIREBASE_MESSAGING_SENDER_ID }}
+    --dart-define=PICOCLAW_UMENG_APP_KEY=${{ secrets.PICOCLAW_UMENG_APP_KEY }}
+    --dart-define=PICOCLAW_UMENG_CHANNEL=${{ secrets.PICOCLAW_UMENG_CHANNEL }}
 
 jobs:
   build-windows:
@@ -53,7 +61,7 @@ jobs:
           nuget help
 
       - name: Build Windows release
-        run: flutter build windows --release
+        run: flutter build windows --release $env:PICOCLAW_FLUTTER_BUILD_ARGS
 
       - name: Prepare release metadata
         shell: powershell

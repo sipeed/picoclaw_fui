@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// PicoClaw 原生 MethodChannel 客户端。
@@ -80,5 +81,58 @@ class PicoClawChannel {
   static Future<String> getPicoToken() async {
     final result = await _channel.invokeMethod<String>('getPicoToken');
     return result ?? '';
+  }
+
+  /// 获取安全的设备信息（避免敏感标识符）
+  static Future<Map<String, String>> getSafeDeviceInfo() async {
+    final result = await _channel.invokeMethod<Map>('getSafeDeviceInfo');
+    if (result == null) return const {};
+    return result.map(
+      (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+    );
+  }
+
+  static Future<bool> setUmengAnalyticsConsent(bool enabled) async {
+    final result = await _channel.invokeMethod<bool>(
+      'setUmengAnalyticsConsent',
+      {'enabled': enabled},
+    );
+    return result ?? false;
+  }
+
+  static Future<Map<String, dynamic>> uploadUmengDeviceReport(
+    Map<String, Object?> payload,
+  ) async {
+    debugPrint('[PicoClawChannel] === uploadUmengDeviceReport START ===');
+    debugPrint(
+      '[PicoClawChannel] Calling native method with payload keys: ${payload.keys.toList()}',
+    );
+
+    try {
+      final result = await _channel
+          .invokeMethod<Map>('uploadUmengDeviceReport', payload)
+          .timeout(const Duration(seconds: 8));
+
+      debugPrint('[PicoClawChannel] Native method returned');
+
+      if (result == null) {
+        debugPrint('[PicoClawChannel] ERROR: Native returned null');
+        return const {
+          'success': false,
+          'message': 'No response from native Umeng bridge.',
+        };
+      }
+
+      final mappedResult = Map<String, dynamic>.from(result);
+      debugPrint(
+        '[PicoClawChannel] Result: success=${mappedResult['success']}, message=${mappedResult['message']}',
+      );
+      debugPrint('[PicoClawChannel] === uploadUmengDeviceReport END ===');
+      return mappedResult;
+    } catch (e) {
+      debugPrint('[PicoClawChannel] ERROR: Exception caught: $e');
+      debugPrint('[PicoClawChannel] === uploadUmengDeviceReport FAILED ===');
+      return {'success': false, 'message': 'Exception: $e'};
+    }
   }
 }
