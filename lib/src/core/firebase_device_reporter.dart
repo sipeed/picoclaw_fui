@@ -252,7 +252,7 @@ class FirebaseDeviceReporter {
 
       final result = FirebaseUploadResult(
         success: true,
-        message: 'Analytics event queued.',
+        message: 'Analytics event synced successfully',
         uploadedAt: now,
         deviceInfo: info,
       );

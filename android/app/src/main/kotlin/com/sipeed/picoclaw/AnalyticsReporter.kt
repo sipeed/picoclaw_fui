@@ -225,7 +225,7 @@ object AnalyticsReporter {
             mapOf<String, Any>(
                 "success" to true,
                 "errorType" to "",
-                "message" to "Event sent successfully with ${eventPayload.size} params",
+                "message" to "Analytics event synced successfully",
                 "paramCount" to eventPayload.size,
                 "paramKeys" to eventPayload.keys.toList(),
             )

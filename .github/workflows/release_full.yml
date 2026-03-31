@@ -62,7 +62,7 @@ jobs:
           path: |
             ~/.pub-cache
             ~/.gradle/caches
-          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.yaml') }}-${{ hashFiles('**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-flutter-${{ matrix.variant }}-${{ hashFiles('**/pubspec.yaml') }}-${{ hashFiles('**/gradle-wrapper.properties') }}
 
       - name: Flutter pub get
         run: flutter pub get
@@ -80,16 +80,16 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
-            echo "KEYSTORE_PATH=android/app/keystore.jks" >> $GITHUB_ENV
-            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> $GITHUB_ENV
-            echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=$KEY_PASSWORD" >> $GITHUB_ENV
-            echo "Android signing configured"
-          else
-            echo "No signing configuration found, using debug signature"
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "Error: No signing configuration found. Release builds require signing keys."
+            exit 1
           fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
+          echo "KEYSTORE_PATH=$PWD/android/app/keystore.jks" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KEY_PASSWORD" >> $GITHUB_ENV
+          echo "Android signing configured"
 
       - name: Set build args for international (Firebase)
         if: matrix.variant == 'international'
