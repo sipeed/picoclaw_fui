@@ -10,19 +10,18 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  PICOCLAW_FLUTTER_BUILD_ARGS: >-
-    --dart-define=PICOCLAW_ANALYTICS_PROVIDER=firebase
-    --dart-define=PICOCLAW_FIREBASE_APP_ID=${{ secrets.PICOCLAW_FIREBASE_APP_ID }}
-    --dart-define=PICOCLAW_FIREBASE_API_KEY=${{ secrets.PICOCLAW_FIREBASE_API_KEY }}
-    --dart-define=PICOCLAW_FIREBASE_PROJECT_ID=${{ secrets.PICOCLAW_FIREBASE_PROJECT_ID }}
-    --dart-define=PICOCLAW_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.PICOCLAW_FIREBASE_MESSAGING_SENDER_ID }}
-    --dart-define=PICOCLAW_UMENG_APP_KEY=${{ secrets.PICOCLAW_UMENG_APP_KEY }}
-    --dart-define=PICOCLAW_UMENG_CHANNEL=${{ secrets.PICOCLAW_UMENG_CHANNEL }}
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
     environment: production
+    strategy:
+      matrix:
+        include:
+          - variant: international
+            analytics_provider: firebase
+          - variant: domestic
+            analytics_provider: umeng
     outputs:
       release_base: ${{ steps.vars.outputs.release_base }}
     steps:
@@ -92,6 +91,16 @@ jobs:
             echo "No signing configuration found, using debug signature"
           fi
 
+      - name: Set build args for international (Firebase)
+        if: matrix.variant == 'international'
+        run: |
+          echo "PICOCLAW_FLUTTER_BUILD_ARGS=--dart-define=PICOCLAW_ANALYTICS_PROVIDER=firebase --dart-define=PICOCLAW_FIREBASE_APP_ID=${{ secrets.PICOCLAW_FIREBASE_APP_ID }} --dart-define=PICOCLAW_FIREBASE_API_KEY=${{ secrets.PICOCLAW_FIREBASE_API_KEY }} --dart-define=PICOCLAW_FIREBASE_PROJECT_ID=${{ secrets.PICOCLAW_FIREBASE_PROJECT_ID }} --dart-define=PICOCLAW_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.PICOCLAW_FIREBASE_MESSAGING_SENDER_ID }}" >> $GITHUB_ENV
+
+      - name: Set build args for domestic (Umeng)
+        if: matrix.variant == 'domestic'
+        run: |
+          echo "PICOCLAW_FLUTTER_BUILD_ARGS=--dart-define=PICOCLAW_ANALYTICS_PROVIDER=umeng --dart-define=PICOCLAW_UMENG_APP_KEY=${{ secrets.PICOCLAW_UMENG_APP_KEY }} --dart-define=PICOCLAW_UMENG_CHANNEL=${{ secrets.PICOCLAW_UMENG_CHANNEL }}" >> $GITHUB_ENV
+
       - name: fetch/install core
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -99,10 +108,10 @@ jobs:
           flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform android --arch arm64 --build-mode release --install-to-build
 
       - name: Build Android App Bundle (AAB)
-        run: flutter build appbundle --release --target-platform android-arm,android-arm64
+        run: flutter build appbundle --release --target-platform android-arm,android-arm64 $PICOCLAW_FLUTTER_BUILD_ARGS
 
       - name: Build Android APK (release)
-        run: flutter build apk --release --target-platform android-arm,android-arm64
+        run: flutter build apk --release --target-platform android-arm,android-arm64 $PICOCLAW_FLUTTER_BUILD_ARGS
 
 
       - name: Verify APK Signature
@@ -123,14 +132,21 @@ jobs:
           echo "release_base=$base_no_prefix" >> $GITHUB_OUTPUT
           echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
           echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
+          echo "VARIANT=${{ matrix.variant }}" >> $GITHUB_ENV
 
       - name: Collect and rename Android artifacts
         run: |
           set -e
           PKG_NAME=picoclaw_fui
+          VARIANT=${VARIANT}
           TAG=${RELEASE_BASE}
-          AAB_NAME=${PKG_NAME}-${TAG}-android-arm_arm64.aab
-          APK_NAME=${PKG_NAME}-${TAG}-android-universal.apk
+          if [ "$VARIANT" = "domestic" ]; then
+            AAB_NAME=${PKG_NAME}-${TAG}-android-arm_arm64.aab
+            APK_NAME=${PKG_NAME}-${TAG}-android-universal.apk
+          else
+            AAB_NAME=${PKG_NAME}-${TAG}-android-international-arm_arm64.aab
+            APK_NAME=${PKG_NAME}-${TAG}-android-international-universal.apk
+          fi
           rm -f "$AAB_NAME" "$APK_NAME" || true
           if ls build/app/outputs/bundle/release/*.aab 1> /dev/null 2>&1; then
             cp build/app/outputs/bundle/release/*.aab "$AAB_NAME"
@@ -148,14 +164,14 @@ jobs:
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
-          path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
+          name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-${{ env.VARIANT == 'domestic' && 'arm_arm64' || 'international-arm_arm64' }}.aab
+          path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-${{ env.VARIANT == 'domestic' && 'arm_arm64' || 'international-arm_arm64' }}.aab
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
-          path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
+          name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-${{ env.VARIANT == 'domestic' && 'universal' || 'international-universal' }}.apk
+          path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-${{ env.VARIANT == 'domestic' && 'universal' || 'international-universal' }}.apk
 
       - name: Cleanup signing keys
         if: always()
@@ -460,6 +476,8 @@ jobs:
           artifacts: |
             picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
             picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
+            picoclaw_fui-${{ env.RELEASE_BASE }}-android-international-arm_arm64.aab
+            picoclaw_fui-${{ env.RELEASE_BASE }}-android-international-universal.apk
             picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
             picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
             picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
