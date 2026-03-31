@@ -24,6 +24,7 @@ jobs:
             analytics_provider: umeng
     outputs:
       release_base: ${{ steps.vars.outputs.release_base }}
+      artifact_suffix: ${{ steps.vars.outputs.artifact_suffix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -128,15 +129,19 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             base_no_prefix="${GITHUB_REF#refs/tags/}"
             echo "Tag detected: $base_no_prefix"
+            artifact_suffix=""
           else
             now=$(date -u +%y%m%d)
             short=$(git rev-parse --short=6 $GITHUB_SHA)
             base_no_prefix="$now-$short"
+            artifact_suffix="-${base_no_prefix}"
           fi
-          release_tag="picoclaw_fui-$base_no_prefix"
+          release_tag="picoclaw_fui-${base_no_prefix}"
           echo "release_base=$base_no_prefix" >> $GITHUB_OUTPUT
+          echo "artifact_suffix=$artifact_suffix" >> $GITHUB_OUTPUT
           echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
           echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
+          echo "ARTIFACT_SUFFIX=$artifact_suffix" >> $GITHUB_ENV
           echo "VARIANT=${{ matrix.variant }}" >> $GITHUB_ENV
 
       - name: Collect and rename Android artifacts
@@ -144,13 +149,13 @@ jobs:
           set -e
           PKG_NAME=picoclaw_fui
           VARIANT=${VARIANT}
-          TAG=${RELEASE_BASE}
+          SUFFIX=${ARTIFACT_SUFFIX}
           if [ "$VARIANT" = "domestic" ]; then
-            AAB_NAME=${PKG_NAME}-${TAG}-android-arm_arm64.aab
-            APK_NAME=${PKG_NAME}-${TAG}-android-universal.apk
+            AAB_NAME=${PKG_NAME}${SUFFIX}-android-arm_arm64.aab
+            APK_NAME=${PKG_NAME}${SUFFIX}-android-universal.apk
           else
-            AAB_NAME=${PKG_NAME}-${TAG}-android-international-arm_arm64.aab
-            APK_NAME=${PKG_NAME}-${TAG}-android-international-universal.apk
+            AAB_NAME=${PKG_NAME}${SUFFIX}-android-international-arm_arm64.aab
+            APK_NAME=${PKG_NAME}${SUFFIX}-android-international-universal.apk
           fi
           rm -f "$AAB_NAME" "$APK_NAME" || true
           if ls build/app/outputs/bundle/release/*.aab 1> /dev/null 2>&1; then
@@ -169,14 +174,14 @@ jobs:
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-${{ env.VARIANT == 'domestic' && 'arm_arm64' || 'international-arm_arm64' }}.aab
-          path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-${{ env.VARIANT == 'domestic' && 'arm_arm64' || 'international-arm_arm64' }}.aab
+          name: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-${{ env.VARIANT == 'domestic' && 'arm_arm64' || 'international-arm_arm64' }}.aab
+          path: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-${{ env.VARIANT == 'domestic' && 'arm_arm64' || 'international-arm_arm64' }}.aab
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}-android-${{ env.VARIANT == 'domestic' && 'universal' || 'international-universal' }}.apk
-          path: picoclaw_fui-${{ env.RELEASE_BASE }}-android-${{ env.VARIANT == 'domestic' && 'universal' || 'international-universal' }}.apk
+          name: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-${{ env.VARIANT == 'domestic' && 'universal' || 'international-universal' }}.apk
+          path: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-${{ env.VARIANT == 'domestic' && 'universal' || 'international-universal' }}.apk
 
       - name: Cleanup signing keys
         if: always()
@@ -214,19 +219,22 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             base_no_prefix="${GITHUB_REF#refs/tags/}"
             echo "Tag detected: $base_no_prefix"
+            artifact_suffix=""
           else
             now=$(date -u +%y%m%d)
             short=$(git rev-parse --short=6 $GITHUB_SHA)
             base_no_prefix="$now-$short"
+            artifact_suffix="-${base_no_prefix}"
           fi
-          release_tag="picoclaw_fui-$base_no_prefix"
+          release_tag="picoclaw_fui-${base_no_prefix}"
           echo "release_base=$base_no_prefix" >> $GITHUB_OUTPUT
           echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
           echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
+          echo "ARTIFACT_SUFFIX=$artifact_suffix" >> $GITHUB_ENV
 
       - name: Package Release (dmg)
         run: |
-          dest="picoclaw_fui-${RELEASE_BASE}-macos-arm64.dmg"
+          dest="picoclaw_fui${ARTIFACT_SUFFIX}-macos-arm64.dmg"
           rm -f "$dest" || true
           out_dir="build/macos/Build/Products/Release"
           if [ ! -d "$out_dir" ]; then
@@ -244,8 +252,8 @@ jobs:
       - name: Upload macOS DMG artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
-          path: picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
+          name: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-arm64.dmg
+          path: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-arm64.dmg
 
   build-windows:
     runs-on: windows-latest
@@ -314,20 +322,23 @@ jobs:
           if ($env:GITHUB_REF -match '^refs/tags/v') {
             $base_no_prefix = $env:GITHUB_REF -replace '^refs/tags/', ''
             Write-Output "Tag detected: $base_no_prefix"
+            $artifact_suffix = ""
           } else {
             $date = Get-Date -Format 'yyMMdd'
             $short = git rev-parse --short=6 $env:GITHUB_SHA
             $base_no_prefix = "$date-$short"
+            $artifact_suffix = "-$base_no_prefix"
           }
           $release_tag = "picoclaw_fui-$base_no_prefix"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "release_base=$base_no_prefix"
           Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_BASE=$base_no_prefix"
           Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_TAG=$release_tag"
+          Add-Content -Path $env:GITHUB_ENV -Value "ARTIFACT_SUFFIX=$artifact_suffix"
 
       - name: Zip Release
         shell: powershell
         run: |
-          $dest = "picoclaw_fui-${env:RELEASE_BASE}-windows-x64.zip"
+          $dest = "picoclaw_fui${env:ARTIFACT_SUFFIX}-windows-x64.zip"
           Compress-Archive -Path 'build\\windows\\x64\\runner\\Release\\*' -DestinationPath $dest -Force
 
       # core binaries are installed into build outputs; avoid uploading app/bin
@@ -335,8 +346,8 @@ jobs:
       - name: Upload Windows ZIP artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
-          path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
+          name: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-windows-x64.zip
+          path: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-windows-x64.zip
       
       - name: Stage installer files
         shell: powershell
@@ -417,7 +428,7 @@ jobs:
       - name: Build Windows NSIS installer
         shell: powershell
         run: |
-          $installerName = "picoclaw_fui-${env:RELEASE_BASE}-windows-x64-installer.exe"
+          $installerName = "picoclaw_fui${env:ARTIFACT_SUFFIX}-windows-x64-installer.exe"
           $nsisPath = $env:MAKENSIS_PATH
           if (-not $nsisPath) {
             $cmd = Get-Command makensis -ErrorAction SilentlyContinue
@@ -426,7 +437,7 @@ jobs:
           Write-Output "Using makensis: $nsisPath"
           $contentsDir = $env:INSTALLER_STAGE
           if (-not $contentsDir) { $contentsDir = Join-Path $PWD 'installer_stage' }
-          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" /DCONTENTS_DIR="$contentsDir" /DLAUNCHER="picoclaw_flutter_ui.exe" /DOUTPUT_DIR="${env:GITHUB_WORKSPACE}" ".github/picoclaw_installer_fixed.nsi"
+          & $nsisPath /DRELEASE_BASE="${env:RELEASE_BASE}" /DCONTENTS_DIR="$contentsDir" /DLAUNCHER="picoclaw_flutter_ui.exe" /DOUTPUT_DIR="${env:GITHUB_WORKSPACE}" /DOUTPUT_NAME="$installerName" ".github/picoclaw_installer_fixed.nsi"
           if (-not (Test-Path $installerName)) {
             Write-Error "Installer build failed: $installerName"
             exit 1
@@ -435,8 +446,8 @@ jobs:
       - name: Upload Windows NSIS installer artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
-          path: picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
+          name: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-windows-x64-installer.exe
+          path: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-windows-x64-installer.exe
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -482,33 +493,36 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             base_no_prefix="${GITHUB_REF#refs/tags/}"
             echo "Tag detected: $base_no_prefix"
+            artifact_suffix=""
           else
             now=$(date -u +%y%m%d)
             short=$(git rev-parse --short=6 $GITHUB_SHA)
             base_no_prefix="$now-$short"
+            artifact_suffix="-${base_no_prefix}"
           fi
-          release_tag="picoclaw_fui-$base_no_prefix"
+          release_tag="picoclaw_fui-${base_no_prefix}"
           echo "release_base=$base_no_prefix" >> $GITHUB_OUTPUT
           echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
           echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
+          echo "ARTIFACT_SUFFIX=$artifact_suffix" >> $GITHUB_ENV
 
       - name: Package Linux as .deb
         run: |
           set -e
           PKG_NAME=picoclaw_fui
-          TAG=${RELEASE_BASE}
-          DEB_VERSION="${TAG#v}"
-          DEST=${PKG_NAME}-${TAG}-linux-x86_64.deb
+          SUFFIX=${ARTIFACT_SUFFIX}
+          DEB_VERSION="${RELEASE_BASE#v}"
+          DEST=${PKG_NAME}${SUFFIX}-linux-x86_64.deb
           PKGROOT=$PWD/pkg_root
           rm -rf "$PKGROOT" "$DEST"
           BUNDLE_DIR=build/linux/x64/release/bundle
           if [ ! -d "$BUNDLE_DIR" ]; then echo "Bundle not found: $BUNDLE_DIR"; ls -la build/linux || true; exit 1; fi
-          mkdir -p "$PKGROOT/opt/${PKG_NAME}/${TAG}"
-          cp -r "$BUNDLE_DIR"/* "$PKGROOT/opt/${PKG_NAME}/${TAG}/"
+          mkdir -p "$PKGROOT/opt/${PKG_NAME}/${RELEASE_BASE}"
+          cp -r "$BUNDLE_DIR"/* "$PKGROOT/opt/${PKG_NAME}/${RELEASE_BASE}/"
           # Include any fetched core binaries installed to app/bin
           if [ -d app/bin ]; then
-            mkdir -p "$PKGROOT/opt/${PKG_NAME}/${TAG}/app/bin"
-            cp -r app/bin/* "$PKGROOT/opt/${PKG_NAME}/${TAG}/app/bin/" || true
+            mkdir -p "$PKGROOT/opt/${PKG_NAME}/${RELEASE_BASE}/app/bin"
+            cp -r app/bin/* "$PKGROOT/opt/${PKG_NAME}/${RELEASE_BASE}/app/bin/" || true
           fi
           mkdir -p "$PKGROOT/usr/bin"
           printf '%s\n' \
@@ -564,8 +578,8 @@ jobs:
       - name: Upload Linux .deb artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
-          path: picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
+          name: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-linux-x86_64.deb
+          path: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-linux-x86_64.deb
 
   publish:
     needs: [build-android, build-windows, build-macos, build-linux]
@@ -587,7 +601,9 @@ jobs:
           find downloaded_artifacts -type f -exec mv -t . {} + || true
 
       - name: Set release vars from build outputs
-        run: echo "RELEASE_BASE=${{ needs.build-android.outputs.release_base }}" >> $GITHUB_ENV
+        run: |
+          echo "RELEASE_BASE=${{ needs.build-android.outputs.release_base }}" >> $GITHUB_ENV
+          echo "ARTIFACT_SUFFIX=${{ needs.build-android.outputs.artifact_suffix }}" >> $GITHUB_ENV
 
       - name: Publish Release and upload artifacts
         uses: ncipollo/release-action@v1
@@ -596,13 +612,13 @@ jobs:
           name: picoclaw_fui-${{ env.RELEASE_BASE }}
           allowUpdates: true
           artifacts: |
-            picoclaw_fui-${{ env.RELEASE_BASE }}-android-arm_arm64.aab
-            picoclaw_fui-${{ env.RELEASE_BASE }}-android-universal.apk
-            picoclaw_fui-${{ env.RELEASE_BASE }}-android-international-arm_arm64.aab
-            picoclaw_fui-${{ env.RELEASE_BASE }}-android-international-universal.apk
-            picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64.zip
-            picoclaw_fui-${{ env.RELEASE_BASE }}-macos-arm64.dmg
-            picoclaw_fui-${{ env.RELEASE_BASE }}-linux-x86_64.deb
-            picoclaw_fui-${{ env.RELEASE_BASE }}-windows-x64-installer.exe
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-arm_arm64.aab
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-universal.apk
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-international-arm_arm64.aab
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-international-universal.apk
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-windows-x64.zip
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-arm64.dmg
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-linux-x86_64.deb
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-windows-x64-installer.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
