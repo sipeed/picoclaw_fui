@@ -206,12 +206,52 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build macOS release (build + fetch/install core)
+      - name: Fetch macOS core (arm64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          flutter pub run tools/fetch_core_local.dart --repo sipeed/picoclaw --tag latest --out-dir app/bin --platform macos --arch arm64 --build-mode release --install-to-build
-          flutter build macos --release
+          flutter pub run tools/fetch_core_local.dart \
+            --repo sipeed/picoclaw --tag latest \
+            --out-dir app/bin_arm64 \
+            --platform macos --arch arm64 \
+            --build-mode release --no-install-to-build
+
+      - name: Fetch macOS core (x86_64)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flutter pub run tools/fetch_core_local.dart \
+            --repo sipeed/picoclaw --tag latest \
+            --out-dir app/bin_x86_64 \
+            --platform macos --arch x86_64 \
+            --build-mode release --no-install-to-build
+
+      - name: Create universal (fat) core binaries
+        run: |
+          set -e
+          mkdir -p app/bin
+          for bin in picoclaw picoclaw-launcher; do
+            arm64="app/bin_arm64/$bin"
+            x86="app/bin_x86_64/$bin"
+            out="app/bin/$bin"
+            if [ -f "$arm64" ] && [ -f "$x86" ]; then
+              lipo -create "$arm64" "$x86" -output "$out"
+              echo "Created fat binary: $out"
+            elif [ -f "$arm64" ]; then
+              cp "$arm64" "$out"
+              echo "Only arm64 found, using single-arch for $bin"
+            elif [ -f "$x86" ]; then
+              cp "$x86" "$out"
+              echo "Only x86_64 found, using single-arch for $bin"
+            else
+              echo "ERROR: $bin not found in either arch"; exit 1
+            fi
+            chmod +x "$out"
+            lipo -info "$out" || true
+          done
+
+      - name: Build macOS Flutter app
+        run: flutter build macos --release
 
       - name: Prepare release metadata
         id: vars
@@ -232,28 +272,52 @@ jobs:
           echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
           echo "ARTIFACT_SUFFIX=$artifact_suffix" >> $GITHUB_ENV
 
-      - name: Package Release (dmg)
+      - name: Inject binaries, sign, and package DMG
         run: |
-          dest="picoclaw_fui${ARTIFACT_SUFFIX}-macos-arm64.dmg"
-          rm -f "$dest" || true
+          set -e
           out_dir="build/macos/Build/Products/Release"
           if [ ! -d "$out_dir" ]; then
-            echo "Release output not found"; exit 1
+            echo "Release output not found at $out_dir"; exit 1
           fi
-          app_path="$out_dir"/app/bin
+          app_path=$(find "$out_dir" -maxdepth 1 -name "*.app" -type d | head -1)
           if [ -z "$app_path" ]; then
-            echo "No .app found in $out_dir"; ls -la "$out_dir" || true; exit 1
+            echo "No .app bundle found in $out_dir"
+            ls -la "$out_dir"
+            exit 1
           fi
+          echo "Found .app: $app_path"
+          macos_bin="$app_path/Contents/MacOS"
+          if [ ! -d "$macos_bin" ]; then
+            echo "Contents/MacOS not found in $app_path"; exit 1
+          fi
+          for bin in picoclaw picoclaw-launcher; do
+            if [ -f "app/bin/$bin" ]; then
+              cp "app/bin/$bin" "$macos_bin/$bin"
+              chmod +x "$macos_bin/$bin"
+              echo "Injected: $macos_bin/$bin"
+              lipo -info "$macos_bin/$bin" || true
+            else
+              echo "ERROR: app/bin/$bin not found"; exit 1
+            fi
+          done
+          codesign --force --deep --sign - "$app_path"
+          codesign --verify --deep --strict "$app_path"
+          echo "Codesign OK"
+          dest="picoclaw_fui${ARTIFACT_SUFFIX}-macos-universal.dmg"
+          rm -f "$dest" || true
           stage_dir=$(mktemp -d)
           cp -R "$app_path" "$stage_dir/"
           ln -s /Applications "$stage_dir/Applications"
           hdiutil create -volname "PicoClawFUI" -srcfolder "$stage_dir" -ov -format UDZO "$dest"
+          rm -rf "$stage_dir"
+          ls -lh "$dest"
+          echo "DMG created: $dest"
 
       - name: Upload macOS DMG artifact
         uses: actions/upload-artifact@v7
         with:
-          name: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-arm64.dmg
-          path: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-arm64.dmg
+          name: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-universal.dmg
+          path: picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-universal.dmg
 
   build-windows:
     runs-on: windows-latest
@@ -617,7 +681,7 @@ jobs:
             picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-international-arm_arm64.aab
             picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-international-universal.apk
             picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-windows-x64.zip
-            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-arm64.dmg
+            picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-macos-universal.dmg
             picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-linux-x86_64.deb
             picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-windows-x64-installer.exe
         env:

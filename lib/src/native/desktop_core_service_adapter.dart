@@ -83,6 +83,7 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
       } catch (_) {}
       return null;
     }
+
     final repoRoot = await findRepoRoot();
     if (repoRoot != null) {
       final altBin = p.join(repoRoot, 'app', 'bin');
@@ -161,6 +162,13 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
             }
           }
         }
+      } catch (_) {}
+    } else if (Platform.isMacOS) {
+      // On macOS, use lsof to find and kill any process on the port.
+      // BSD xargs does not support -r; empty input causes kill to print usage
+      // but exits 1, which is silently ignored by the outer catch.
+      try {
+        await Process.run('sh', ['-c', "lsof -ti tcp:$port | xargs kill -9"]);
       } catch (_) {}
     } else if (Platform.isLinux) {
       // On Linux we attempt to kill any process listening on the port using lsof if available
