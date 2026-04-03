@@ -39,18 +39,20 @@ class _WebViewMacOSState extends State<WebViewMacOS> {
                 "document.addEventListener('contextmenu',function(e){e.preventDefault();});",
               );
             } catch (_) {}
-            if (mounted)
+            if (mounted) {
               setState(() {
                 _isReady = true;
                 _isError = false;
               });
+            }
           },
           onWebResourceError: (_) {
-            if (mounted)
+            if (mounted) {
               setState(() {
                 _isReady = true;
                 _isError = true;
               });
+            }
           },
           onNavigationRequest: (_) => NavigationDecision.navigate,
         ),

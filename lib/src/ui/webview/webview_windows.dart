@@ -26,8 +26,6 @@ class _WebViewWindowsState extends State<WebViewWindows> {
   double _pendingScrollDy = 0.0;
   bool _scrollScheduled = false;
 
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
@@ -51,7 +49,7 @@ class _WebViewWindowsState extends State<WebViewWindows> {
       _winLoadingSub = _controller!.loadingState.listen((state) {
         if (!mounted) return;
         if (state == win_wv.LoadingState.loading) {
-          setState(() => _isLoading = true);
+          // loading started
         } else if (state == win_wv.LoadingState.navigationCompleted) {
           Future.microtask(() async {
             try {
@@ -69,7 +67,6 @@ class _WebViewWindowsState extends State<WebViewWindows> {
                   0;
               if (mounted) {
                 setState(() {
-                  _isLoading = false;
                   _winReady = len > 0 && readyStr == 'complete';
                 });
               }
@@ -105,7 +102,6 @@ class _WebViewWindowsState extends State<WebViewWindows> {
             } catch (_) {
               if (mounted) {
                 setState(() {
-                  _isLoading = false;
                   _winReady = true; // fallback; user can reload if blank
                 });
               }
@@ -117,7 +113,6 @@ class _WebViewWindowsState extends State<WebViewWindows> {
       _winLoadErrorSub = _controller!.onLoadError.listen((err) {
         if (!mounted) return;
         setState(() {
-          _isLoading = false;
           _winReady = false;
           _winError = true;
         });
@@ -127,7 +122,6 @@ class _WebViewWindowsState extends State<WebViewWindows> {
       if (mounted) {
         setState(() {
           _winReady = true;
-          _isLoading = false;
         });
       }
     } catch (_) {}
@@ -148,7 +142,6 @@ class _WebViewWindowsState extends State<WebViewWindows> {
     _controller = win_wv.WebviewController();
     setState(() {
       _winReady = false;
-      _isLoading = true;
       _winError = false;
       _winBlankCount = 0;
     });
