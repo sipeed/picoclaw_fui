@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:picoclaw_flutter_ui/src/generated/l10n/app_localizations.dart';
-import 'package:remixicon/remixicon.dart';
 import 'package:webview_windows/webview_windows.dart' as win_wv;
 import 'dart:async';
+import 'webview_nav_bar.dart';
 
 class WebViewWindows extends StatefulWidget {
   final String url;
@@ -28,12 +27,6 @@ class _WebViewWindowsState extends State<WebViewWindows> {
   bool _scrollScheduled = false;
 
   bool _isLoading = true;
-
-  final List<String> _actionOrder = ['back', 'forward', 'reload'];
-  Offset? _actionsOffset;
-  final GlobalKey _stackKey = GlobalKey();
-  final GlobalKey _actionsKey = GlobalKey();
-  bool _dragActive = false;
 
   @override
   void initState() {
@@ -179,192 +172,15 @@ class _WebViewWindowsState extends State<WebViewWindows> {
     super.dispose();
   }
 
-  void _snapActionsToEdge() {
-    if (_actionsOffset == null) return;
-    try {
-      final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box == null) return;
-      final actionBox =
-          _actionsKey.currentContext?.findRenderObject() as RenderBox?;
-      final actionW = actionBox?.size.width ?? 80.0;
-      final actionH = actionBox?.size.height ?? 56.0;
-      final maxX = (box.size.width - actionW).clamp(0.0, double.infinity);
-      final maxY = (box.size.height - actionH).clamp(0.0, double.infinity);
-      final dx = _actionsOffset!.dx.clamp(0.0, maxX);
-      final dy = _actionsOffset!.dy.clamp(0.0, maxY);
-
-      double minDist = dx;
-      String edge = 'left';
-      if ((maxX - dx).abs() < minDist) {
-        minDist = (maxX - dx).abs();
-        edge = 'right';
-      }
-      if (dy < minDist) {
-        minDist = dy;
-        edge = 'top';
-      }
-      if ((maxY - dy).abs() < minDist) {
-        minDist = (maxY - dy).abs();
-        edge = 'bottom';
-      }
-
-      double finalDx = dx;
-      double finalDy = dy;
-      switch (edge) {
-        case 'left':
-          finalDx = 0.0;
-          finalDy = dy.clamp(0.0, maxY);
-          break;
-        case 'right':
-          finalDx = maxX;
-          finalDy = dy.clamp(0.0, maxY);
-          break;
-        case 'top':
-          finalDy = 0.0;
-          finalDx = dx.clamp(0.0, maxX);
-          break;
-        case 'bottom':
-          finalDy = maxY;
-          finalDx = dx.clamp(0.0, maxX);
-          break;
-      }
-      setState(() => _actionsOffset = Offset(finalDx, finalDy));
-    } catch (_) {}
-  }
-
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
 
     if (!_winReady) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    Widget buildAction(String key) {
-      Icon icon;
-      String tooltip;
-      VoidCallback? handler;
-
-      switch (key) {
-        case 'back':
-          icon = Icon(Remix.arrow_left_s_line, color: colorScheme.secondary);
-          tooltip = l10n.back;
-          handler = () => _controller?.goBack();
-          break;
-        case 'forward':
-          icon = Icon(Remix.arrow_right_s_line, color: colorScheme.secondary);
-          tooltip = l10n.forward;
-          handler = () => _controller?.goForward();
-          break;
-        case 'reload':
-        default:
-          icon = Icon(Remix.refresh_line, color: colorScheme.secondary);
-          tooltip = l10n.refresh;
-          handler = () => _controller?.reload();
-          break;
-      }
-
-      return IconButton(icon: icon, tooltip: tooltip, onPressed: handler);
-    }
-
-    final Widget inner = Material(
-      key: _actionsKey,
-      color: colorScheme.surface.withAlpha(
-        ((0.7).clamp(0.0, 1.0) * 255).round(),
-      ),
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: _actionOrder.map(buildAction).toList(),
-        ),
-      ),
-    );
-
-    final Widget actionsGroup = AnimatedScale(
-      scale: _dragActive ? 1.06 : 1.0,
-      duration: const Duration(milliseconds: 120),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(
-          boxShadow: _dragActive
-              ? [
-                  const BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 12,
-                    offset: Offset(0, 6),
-                  ),
-                ]
-              : [
-                  const BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: inner,
-      ),
-    );
-
-    final draggable = MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onPanStart: (_) => setState(() => _dragActive = true),
-        onPanUpdate: (details) {
-          try {
-            final box =
-                _stackKey.currentContext?.findRenderObject() as RenderBox?;
-            if (box != null) {
-              final local = box.globalToLocal(details.globalPosition);
-              final actionBox =
-                  _actionsKey.currentContext?.findRenderObject() as RenderBox?;
-              final actionW = actionBox?.size.width ?? 80.0;
-              final actionH = actionBox?.size.height ?? 56.0;
-              final maxX = (box.size.width - actionW).clamp(
-                0.0,
-                double.infinity,
-              );
-              final maxY = (box.size.height - actionH).clamp(
-                0.0,
-                double.infinity,
-              );
-              setState(
-                () => _actionsOffset = Offset(
-                  local.dx.clamp(0.0, maxX),
-                  local.dy.clamp(0.0, maxY),
-                ),
-              );
-            }
-          } catch (_) {}
-        },
-        onPanEnd: (_) {
-          setState(() => _dragActive = false);
-          _snapActionsToEdge();
-        },
-        child: actionsGroup,
-      ),
-    );
-
-    final Widget actionsBar = _actionsOffset != null
-        ? AnimatedPositioned(
-            left: _actionsOffset!.dx,
-            top: _actionsOffset!.dy,
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOut,
-            child: draggable,
-          )
-        : Container(
-            alignment: Alignment.topRight,
-            margin: const EdgeInsets.only(top: 12, right: 12),
-            child: draggable,
-          );
-
     return Stack(
-      key: _stackKey,
       children: [
         MouseRegion(
           onEnter: (_) {},
@@ -399,7 +215,13 @@ class _WebViewWindowsState extends State<WebViewWindows> {
             child: win_wv.Webview(_controller!),
           ),
         ),
-        actionsBar,
+        Positioned.fill(
+          child: DraggableWebNavBar(
+            onBack: () => _controller?.goBack(),
+            onForward: () => _controller?.goForward(),
+            onReload: () => _controller?.reload(),
+          ),
+        ),
         if (_winError)
           Positioned.fill(
             child: Container(
