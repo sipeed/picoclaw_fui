@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'webview_nav_bar.dart';
 
 class WebViewAndroid extends StatefulWidget {
   final String url;
@@ -88,6 +89,13 @@ class _WebViewAndroidState extends State<WebViewAndroid> {
             height: double.infinity,
             child: const Center(child: CircularProgressIndicator()),
           ),
+        Positioned.fill(
+          child: DraggableWebNavBar(
+            onBack: () => _controller?.goBack(),
+            onForward: () => _controller?.goForward(),
+            onReload: () => _controller?.reload(),
+          ),
+        ),
       ],
     );
   }
