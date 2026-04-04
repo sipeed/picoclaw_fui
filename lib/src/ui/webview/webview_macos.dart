@@ -63,13 +63,10 @@ class _WebViewMacOSState extends State<WebViewMacOS> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    if (!_isReady) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     return Stack(
       children: [
         SizedBox.expand(child: WebViewWidget(controller: _controller!)),
+        if (!_isReady) const Center(child: CircularProgressIndicator()),
         Positioned.fill(
           child: DraggableWebNavBar(
             onBack: () => _controller?.goBack(),
