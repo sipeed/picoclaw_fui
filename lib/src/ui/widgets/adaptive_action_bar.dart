@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:picoclaw_flutter_ui/src/core/ui_constants.dart';
 
 /// AdaptiveActionBar
@@ -47,9 +48,10 @@ class AdaptiveActionBar extends StatelessWidget {
                           vertical: 8,
                           horizontal: 12,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: actions.map((a) => _wrapAction(a)).toList(),
+                        child: _ActionPanel(
+                          actions: actions,
+                          isBottom: true,
+                          shellColor: shellColor,
                         ),
                       ),
                     ),
@@ -67,28 +69,11 @@ class AdaptiveActionBar extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(child: content),
-                    Container(
-                      width: kSideBarWidth,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: theme.scaffoldBackgroundColor,
-                        boxShadow: [
-                          BoxShadow(color: Colors.black12, blurRadius: 6),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: actions
-                            .map(
-                              (a) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                ),
-                                child: _wrapAction(a),
-                              ),
-                            )
-                            .toList(),
-                      ),
+                    _ActionPanel(
+                      actions: actions,
+                      isBottom: false,
+                      shellColor: shellColor,
+                      scaffoldBackgroundColor: theme.scaffoldBackgroundColor,
                     ),
                   ],
                 ),
@@ -119,12 +104,96 @@ class AdaptiveActionBar extends StatelessWidget {
       statusBarBrightness: useDarkIcons ? Brightness.light : Brightness.dark,
     );
   }
+}
 
-  Widget _wrapAction(Widget w) {
-    return SizedBox(
-      width: kActionButtonSize,
-      height: kActionButtonSize,
-      child: Center(child: w),
+class _ActionPanel extends StatefulWidget {
+  final List<Widget> actions;
+  final bool isBottom;
+  final Color shellColor;
+  final Color? scaffoldBackgroundColor;
+
+  const _ActionPanel({
+    Key? key,
+    required this.actions,
+    required this.isBottom,
+    required this.shellColor,
+    this.scaffoldBackgroundColor,
+  }) : super(key: key);
+
+  @override
+  _ActionPanelState createState() => _ActionPanelState();
+}
+
+class _ActionPanelState extends State<_ActionPanel> {
+  late List<Widget> _wrappedActions;
+
+  @override
+  void initState() {
+    super.initState();
+    _wrappedActions = _wrap(widget.actions);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ActionPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(oldWidget.actions, widget.actions)) {
+      _wrappedActions = _wrap(widget.actions);
+    }
+  }
+
+  List<Widget> _wrap(List<Widget> actions) {
+    return actions
+        .map(
+          (a) => SizedBox(
+            width: kActionButtonSize,
+            height: kActionButtonSize,
+            child: Center(child: a),
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.isBottom) {
+      return RepaintBoundary(
+        child: Material(
+          elevation: 0,
+          color: widget.shellColor,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: _wrappedActions,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final scaffoldBg =
+        widget.scaffoldBackgroundColor ??
+        Theme.of(context).scaffoldBackgroundColor;
+    return RepaintBoundary(
+      child: Container(
+        width: kSideBarWidth,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: scaffoldBg,
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: _wrappedActions
+              .map(
+                (w) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: w,
+                ),
+              )
+              .toList(),
+        ),
+      ),
     );
   }
 }
