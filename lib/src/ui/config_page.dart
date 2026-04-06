@@ -184,7 +184,7 @@ class _ConfigPageState extends State<ConfigPage> {
           children: [
             Row(
               children: [
-                Text('服务配置', style: Theme.of(context).textTheme.titleLarge),
+                Text(l10n.settings, style: Theme.of(context).textTheme.titleLarge),
                 const Spacer(),
                 IconButton(
                   tooltip: 'GitHub',
