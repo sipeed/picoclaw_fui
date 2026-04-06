@@ -369,4 +369,10 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
   void setLogHandler(void Function(String)? handler) {
     _logHandler = handler;
   }
+
+  @override
+  Future<String> getWorkspacePath() async => '';
+
+  @override
+  Future<bool> setWorkspacePath(String path) async => false;
 }

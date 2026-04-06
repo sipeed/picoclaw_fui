@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -185,9 +184,10 @@ class ServiceManager extends ChangeNotifier {
       _host = '127.0.0.1';
       try {
         _autoStart = await PicoClawChannel.getAutoStart();
-        final currentWorkspace = await _readAndroidWorkspaceDir();
+        final currentWorkspace = await _adapter.getWorkspacePath();
         if (currentWorkspace != _androidFixedWorkspaceDir) {
-          await setAndroidWorkspaceDir(_androidFixedWorkspaceDir);
+          final ok = await _adapter.setWorkspacePath(_androidFixedWorkspaceDir);
+          _androidWorkspaceDir = ok ? _androidFixedWorkspaceDir : currentWorkspace;
         } else {
           _androidWorkspaceDir = currentWorkspace;
         }
@@ -212,63 +212,14 @@ class ServiceManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String> _readAndroidWorkspaceDir() async {
-    if (!Platform.isAndroid) return '';
-    try {
-      final raw = await PicoClawChannel.getConfig();
-      if (raw.trim().isEmpty) return '';
-      final parsed = json.decode(raw);
-      if (parsed is! Map) return '';
-      final root = Map<String, dynamic>.from(parsed);
-      final agents = root['agents'];
-      if (agents is! Map) return '';
-      final defaults = agents['defaults'];
-      if (defaults is! Map) return '';
-      final workspace = defaults['workspace'];
-      return workspace is String ? workspace : '';
-    } catch (_) {
-      return '';
-    }
-  }
-
   Future<bool> setAndroidWorkspaceDir(String value) async {
     if (!Platform.isAndroid) return false;
-    try {
-      final normalized = _androidFixedWorkspaceDir;
-      try {
-        await Directory(normalized).create(recursive: true);
-      } catch (_) {}
-      final raw = await PicoClawChannel.getConfig();
-      Map<String, dynamic> root;
-      if (raw.trim().isEmpty) {
-        root = <String, dynamic>{};
-      } else {
-        final parsed = json.decode(raw);
-        if (parsed is! Map) return false;
-        root = Map<String, dynamic>.from(parsed);
-      }
-
-      final agents = root['agents'];
-      final agentsMap = agents is Map
-          ? Map<String, dynamic>.from(agents)
-          : <String, dynamic>{};
-      final defaults = agentsMap['defaults'];
-      final defaultsMap = defaults is Map
-          ? Map<String, dynamic>.from(defaults)
-          : <String, dynamic>{};
-      defaultsMap['workspace'] = normalized;
-      agentsMap['defaults'] = defaultsMap;
-      root['agents'] = agentsMap;
-
-      final ok = await PicoClawChannel.saveConfig(json.encode(root));
-      if (ok) {
-        _androidWorkspaceDir = normalized;
-        notifyListeners();
-      }
-      return ok;
-    } catch (_) {
-      return false;
+    final ok = await _adapter.setWorkspacePath(_androidFixedWorkspaceDir);
+    if (ok) {
+      _androidWorkspaceDir = _androidFixedWorkspaceDir;
+      notifyListeners();
     }
+    return ok;
   }
 
   Future<void> _autoUploadDeviceFeedbackIfNeeded() async {

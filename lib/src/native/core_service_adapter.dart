@@ -16,4 +16,12 @@ abstract class CoreServiceAdapter {
   /// Returns true if valid; adapters should set an internal last error code
   /// accessible via `getLastErrorCode()` on failure.
   Future<bool> validateBinary([String? path]);
+
+  /// Read the current workspace path from the platform config.
+  /// Returns an empty string if not set or not supported.
+  Future<String> getWorkspacePath();
+
+  /// Write the workspace path into the platform config.
+  /// Returns true on success.
+  Future<bool> setWorkspacePath(String path);
 }
