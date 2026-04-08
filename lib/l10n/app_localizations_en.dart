@@ -72,6 +72,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get publicModeHintDesc => 'Allow access from other devices';
 
   @override
+  String get workspaceDirectory => 'Workspace';
+
+  @override
   String get coreValid => 'Core binary is valid';
 
   @override

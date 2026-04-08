@@ -172,6 +172,9 @@ class PicoClawMethodChannel(
                     val configFile = File(context.filesDir, "picoclaw/config.json")
                     result.success(configFile.absolutePath)
                 }
+                "getHomePath" -> {
+                    result.success(PicoClawService.WORKSPACE_PATH)
+                }
                 "getPicoToken" -> {
                     result.success(PicoClawService.PICO_TOKEN)
                 }

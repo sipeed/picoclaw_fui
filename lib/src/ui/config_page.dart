@@ -103,9 +103,6 @@ class _ConfigPageState extends State<ConfigPage> {
         arguments: _argsController.text,
         publicMode: service.publicMode,
       );
-      if (Platform.isAndroid) {
-        await service.setWorkspacePath('');
-      }
     }
   }
 
@@ -408,7 +405,7 @@ class _ConfigPageState extends State<ConfigPage> {
             if (Platform.isAndroid) ...[
               const SizedBox(height: 16),
               Text(
-                '工作目录',
+                l10n.workspaceDirectory,
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(color: Colors.white60),

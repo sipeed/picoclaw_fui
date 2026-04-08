@@ -494,6 +494,12 @@ abstract class AppLocalizations {
   /// **'Picoclaw logs'**
   String get shareLogsText;
 
+  /// No description provided for @workspaceDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace'**
+  String get workspaceDirectory;
+
   /// No description provided for @logsSavedToMediaLibraryWithName.
   ///
   /// In en, this message translates to:

@@ -79,7 +79,8 @@
       "path": {}
     }
   },
-  "shareLogsText": "Picoclaw 日志"
+  "shareLogsText": "Picoclaw 日志",
+  "workspaceDirectory": "工作目录"
   ,
   "logsSavedToMediaLibraryWithName": "已保存到“下载”目录（Android 媒体库）：{name}",
   "@logsSavedToMediaLibraryWithName": {

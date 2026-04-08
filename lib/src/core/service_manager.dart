@@ -13,8 +13,6 @@ import '../native/core_service_adapter.dart';
 enum ServiceStatus { stopped, running, starting }
 
 class ServiceManager extends ChangeNotifier {
-  static const String _fixedWorkspacePath =
-      '/storage/emulated/0/Download/picoclaw';
   static const List<Duration> _deviceFeedbackRetryDelays = [
     Duration(seconds: 15),
     Duration(minutes: 1),
@@ -184,13 +182,7 @@ class ServiceManager extends ChangeNotifier {
       _host = '127.0.0.1';
       try {
         _autoStart = await PicoClawChannel.getAutoStart();
-        final currentWorkspace = await _adapter.getWorkspacePath();
-        if (currentWorkspace != _fixedWorkspacePath) {
-          final ok = await _adapter.setWorkspacePath(_fixedWorkspacePath);
-          _workspacePath = ok ? _fixedWorkspacePath : currentWorkspace;
-        } else {
-          _workspacePath = currentWorkspace;
-        }
+        _workspacePath = await _adapter.getWorkspacePath();
         await _syncNativeServiceStatus();
       } catch (_) {}
       _startNativePolling();
@@ -213,10 +205,9 @@ class ServiceManager extends ChangeNotifier {
   }
 
   Future<bool> setWorkspacePath(String value) async {
-    if (!Platform.isAndroid) return false;
-    final ok = await _adapter.setWorkspacePath(_fixedWorkspacePath);
+    final ok = await _adapter.setWorkspacePath(value);
     if (ok) {
-      _workspacePath = _fixedWorkspacePath;
+      _workspacePath = value;
       notifyListeners();
     }
     return ok;

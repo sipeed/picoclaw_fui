@@ -215,6 +215,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shareLogsText => 'Picoclaw 日志';
 
   @override
+  String get workspaceDirectory => '工作目录';
+
+  @override
   String logsSavedToMediaLibraryWithName(Object name) {
     return '已保存到“下载”目录（Android 媒体库）：$name';
   }

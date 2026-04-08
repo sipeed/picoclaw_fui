@@ -223,6 +223,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareLogsText => 'Picoclaw logs';
 
   @override
+  String get workspaceDirectory => 'Workspace';
+
+  @override
   String logsSavedToMediaLibraryWithName(Object name) {
     return 'Logs saved to Downloads (Android media library): $name';
   }

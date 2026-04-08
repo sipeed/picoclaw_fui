@@ -224,6 +224,9 @@ abstract class AppLocalizations {
   /// **'Allow access from other devices'**
   String get publicModeHintDesc;
 
+  /// Workspace directory label
+  String get workspaceDirectory;
+
   /// Core validation messages
   String get coreValid;
   String get coreBinaryMissing;

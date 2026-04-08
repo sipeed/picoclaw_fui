@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/services.dart';
 
-import 'config_json_utils.dart';
 import 'core_service_adapter.dart';
 
 class AndroidCoreServiceAdapter implements CoreServiceAdapter {
@@ -99,8 +97,8 @@ class AndroidCoreServiceAdapter implements CoreServiceAdapter {
   @override
   Future<String> getWorkspacePath() async {
     try {
-      final raw = await _channel.invokeMethod<String>('getConfig');
-      return ConfigJsonUtils.readWorkspacePath(raw ?? '');
+      final result = await _channel.invokeMethod<String>('getHomePath');
+      return result ?? '';
     } catch (_) {
       return '';
     }
@@ -108,19 +106,8 @@ class AndroidCoreServiceAdapter implements CoreServiceAdapter {
 
   @override
   Future<bool> setWorkspacePath(String path) async {
-    try {
-      final normalized = path.trim();
-      try {
-        await Directory(normalized).create(recursive: true);
-      } catch (_) {}
-      final raw = await _channel.invokeMethod<String>('getConfig') ?? '';
-      final patched = ConfigJsonUtils.patchWorkspacePath(raw, normalized);
-      final ok = await _channel.invokeMethod<bool>('saveConfig', {
-        'content': patched,
-      });
-      return ok ?? false;
-    } catch (_) {
-      return false;
-    }
+    // Workspace is controlled by the native service via PICOCLAW_HOME env var.
+    // The GUI does not modify it.
+    return false;
   }
 }

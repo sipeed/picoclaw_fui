@@ -82,7 +82,8 @@
       "path": {}
     }
   },
-  "shareLogsText": "Picoclaw logs"
+  "shareLogsText": "Picoclaw logs",
+  "workspaceDirectory": "Workspace"
   ,
   "logsSavedToMediaLibraryWithName": "Logs saved to Downloads (Android media library): {name}",
   "@logsSavedToMediaLibraryWithName": {

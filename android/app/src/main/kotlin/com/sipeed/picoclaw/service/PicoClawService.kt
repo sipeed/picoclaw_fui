@@ -26,6 +26,7 @@ class PicoClawService : Service() {
         private const val WEB_BINARY_NAME = "libpicoclaw-web.so"
         private const val GATEWAY_PORT = 18790
         private const val WEB_PORT = 18800
+        const val WORKSPACE_PATH = "/storage/emulated/0/Download/picoclaw"
         // 本地 Pico Channel 认证 token（仅用于 loopback 通信）
         const val PICO_TOKEN = "picoclaw-android-local"
 
@@ -571,8 +572,11 @@ class PicoClawService : Service() {
      * 关键：设置 PICOCLAW_BINARY 指向 gateway 二进制，让 web 服务能找到并启动 gateway
      */
     private fun buildEnvironment(): Map<String, String> {
-        val picoHome = File(filesDir, "picoclaw")
-        picoHome.mkdirs()
+        val internalHome = File(filesDir, "picoclaw")
+        internalHome.mkdirs()
+
+        val workspace = File(WORKSPACE_PATH)
+        workspace.mkdirs()
 
         val tmpDir = File(cacheDir, "tmp")
         tmpDir.mkdirs()
@@ -584,11 +588,11 @@ class PicoClawService : Service() {
             // 如果获取失败，使用默认路径
             File(applicationInfo.nativeLibraryDir, GATEWAY_BINARY_NAME).absolutePath
         }
-        val configPath = File(picoHome, "config.json").absolutePath
+        val configPath = File(internalHome, "config.json").absolutePath
 
         return mapOf(
             "HOME" to filesDir.absolutePath,
-            "PICOCLAW_HOME" to picoHome.absolutePath,
+            "PICOCLAW_HOME" to workspace.absolutePath,
             "PICOCLAW_CONFIG" to configPath,
             "PICOCLAW_BINARY" to gatewayBinaryPath,
             "TMPDIR" to tmpDir.absolutePath,

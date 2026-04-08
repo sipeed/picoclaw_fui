@@ -72,6 +72,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get publicModeHintDesc => '允许其他设备访问';
 
   @override
+  String get workspaceDirectory => '工作目录';
+
+  @override
   String get coreValid => '核心程序有效';
 
   @override
