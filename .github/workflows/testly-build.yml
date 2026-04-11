@@ -8,61 +8,9 @@ permissions:
     contents: write
 
 jobs:
-    # Rotate slots before build:
-    #   HEAD2 (oldest) → deleted
-    #   HEAD1 → HEAD2  (release + tag renamed in-place, artifacts preserved)
-    #   HEAD0 → HEAD1
-    #   new build will occupy HEAD0
-    rotate:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Rotate testly HEAD slots
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                  REPO="${{ github.repository }}"
-
-                  # ── Slot 2: delete oldest ──────────────────────────────────
-                  gh release delete testly_HEAD2 --repo "$REPO" --yes 2>/dev/null || true
-                  gh api "repos/$REPO/git/refs/tags/testly_HEAD2" -X DELETE 2>/dev/null || true
-
-                  # ── Slot 1 → 2 ────────────────────────────────────────────
-                  # Check exit code, not string content: gh api prints error JSON to stdout
-                  # on 4xx, making '--jq .field || true' capture the raw error body (~114 chars).
-                  if sha1=$(gh api "repos/$REPO/git/ref/tags/testly_HEAD1" \
-                      --jq '.object.sha' 2>/dev/null); then
-                    rel1=$(gh api "repos/$REPO/releases/tags/testly_HEAD1" \
-                      --jq '.id' 2>/dev/null) || rel1=""
-                    # Create HEAD2 tag pointing to HEAD1's commit
-                    gh api "repos/$REPO/git/refs" \
-                      -f ref="refs/tags/testly_HEAD2" -f sha="$sha1" 2>/dev/null || \
-                    gh api "repos/$REPO/git/refs/tags/testly_HEAD2" \
-                      -X PATCH -f sha="$sha1" -F force=true
-                    # Move the GitHub Release to the new tag (artifacts stay)
-                    [ -n "$rel1" ] && gh api "repos/$REPO/releases/$rel1" \
-                      -X PATCH -f tag_name="testly_HEAD2" -f name="testly_HEAD2"
-                    # Remove the now-orphaned HEAD1 tag
-                    gh api "repos/$REPO/git/refs/tags/testly_HEAD1" -X DELETE
-                  fi
-
-                  # ── Slot 0 → 1 ────────────────────────────────────────────
-                  if sha0=$(gh api "repos/$REPO/git/ref/tags/testly_HEAD0" \
-                      --jq '.object.sha' 2>/dev/null); then
-                    rel0=$(gh api "repos/$REPO/releases/tags/testly_HEAD0" \
-                      --jq '.id' 2>/dev/null) || rel0=""
-                    gh api "repos/$REPO/git/refs" \
-                      -f ref="refs/tags/testly_HEAD1" -f sha="$sha0" 2>/dev/null || \
-                    gh api "repos/$REPO/git/refs/tags/testly_HEAD1" \
-                      -X PATCH -f sha="$sha0" -F force=true
-                    [ -n "$rel0" ] && gh api "repos/$REPO/releases/$rel0" \
-                      -X PATCH -f tag_name="testly_HEAD1" -f name="testly_HEAD1"
-                    gh api "repos/$REPO/git/refs/tags/testly_HEAD0" -X DELETE
-                  fi
-
     build:
-        needs: rotate
         uses: ./.github/workflows/release_full.yml
         with:
-            release_prefix: testly_HEAD0
+            release_prefix: testly
             use_fixed_tag: true
         secrets: inherit
