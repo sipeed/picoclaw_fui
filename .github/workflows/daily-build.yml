@@ -2,7 +2,7 @@ name: Daily Build
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # daily at 02:00 UTC
+    - cron: '0 23 * * *'  # daily at 23:00 UTC (07:00 CST)
   workflow_dispatch:
 
 permissions:
