@@ -1,9 +1,17 @@
 name: Release (build all + publish)
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_prefix:
+        description: 'Release tag/name prefix (e.g. picoclaw_fui, testly, nightly)'
+        type: string
+        default: 'picoclaw_fui'
+      use_fixed_tag:
+        description: 'Use release_prefix directly as the tag (no date/SHA suffix). Old artifacts are replaced in place.'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -126,17 +134,22 @@ jobs:
       - name: Prepare release metadata
         id: vars
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ "${{ inputs.use_fixed_tag }}" == "true" ]]; then
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}"
+            artifact_suffix=""
+            base_no_prefix="$release_tag"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             base_no_prefix="${GITHUB_REF#refs/tags/}"
             echo "Tag detected: $base_no_prefix"
             artifact_suffix=""
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}-${base_no_prefix}"
           else
             now=$(date -u +%y%m%d)
             short=$(git rev-parse --short=6 $GITHUB_SHA)
             base_no_prefix="$now-$short"
             artifact_suffix="-${base_no_prefix}"
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}-${base_no_prefix}"
           fi
-          release_tag="picoclaw_fui-${base_no_prefix}"
           echo "release_base=$base_no_prefix" >> $GITHUB_OUTPUT
           echo "artifact_suffix=$artifact_suffix" >> $GITHUB_OUTPUT
           echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
@@ -256,17 +269,22 @@ jobs:
       - name: Prepare release metadata
         id: vars
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ "${{ inputs.use_fixed_tag }}" == "true" ]]; then
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}"
+            artifact_suffix=""
+            base_no_prefix="$release_tag"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             base_no_prefix="${GITHUB_REF#refs/tags/}"
             echo "Tag detected: $base_no_prefix"
             artifact_suffix=""
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}-${base_no_prefix}"
           else
             now=$(date -u +%y%m%d)
             short=$(git rev-parse --short=6 $GITHUB_SHA)
             base_no_prefix="$now-$short"
             artifact_suffix="-${base_no_prefix}"
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}-${base_no_prefix}"
           fi
-          release_tag="picoclaw_fui-${base_no_prefix}"
           echo "release_base=$base_no_prefix" >> $GITHUB_OUTPUT
           echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
           echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
@@ -383,17 +401,22 @@ jobs:
         id: vars
         shell: powershell
         run: |
-          if ($env:GITHUB_REF -match '^refs/tags/v') {
+          if ("${{ inputs.use_fixed_tag }}" -eq "true") {
+            $release_tag = "${{ inputs.release_prefix || 'picoclaw_fui' }}"
+            $artifact_suffix = ""
+            $base_no_prefix = $release_tag
+          } elseif ($env:GITHUB_REF -match '^refs/tags/v') {
             $base_no_prefix = $env:GITHUB_REF -replace '^refs/tags/', ''
             Write-Output "Tag detected: $base_no_prefix"
             $artifact_suffix = ""
+            $release_tag = "${{ inputs.release_prefix || 'picoclaw_fui' }}-$base_no_prefix"
           } else {
             $date = Get-Date -Format 'yyMMdd'
             $short = git rev-parse --short=6 $env:GITHUB_SHA
             $base_no_prefix = "$date-$short"
             $artifact_suffix = "-$base_no_prefix"
+            $release_tag = "${{ inputs.release_prefix || 'picoclaw_fui' }}-$base_no_prefix"
           }
-          $release_tag = "picoclaw_fui-$base_no_prefix"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "release_base=$base_no_prefix"
           Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_BASE=$base_no_prefix"
           Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_TAG=$release_tag"
@@ -554,17 +577,22 @@ jobs:
       - name: Prepare release metadata
         id: vars
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ "${{ inputs.use_fixed_tag }}" == "true" ]]; then
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}"
+            artifact_suffix=""
+            base_no_prefix="$release_tag"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             base_no_prefix="${GITHUB_REF#refs/tags/}"
             echo "Tag detected: $base_no_prefix"
             artifact_suffix=""
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}-${base_no_prefix}"
           else
             now=$(date -u +%y%m%d)
             short=$(git rev-parse --short=6 $GITHUB_SHA)
             base_no_prefix="$now-$short"
             artifact_suffix="-${base_no_prefix}"
+            release_tag="${{ inputs.release_prefix || 'picoclaw_fui' }}-${base_no_prefix}"
           fi
-          release_tag="picoclaw_fui-${base_no_prefix}"
           echo "release_base=$base_no_prefix" >> $GITHUB_OUTPUT
           echo "RELEASE_BASE=$base_no_prefix" >> $GITHUB_ENV
           echo "RELEASE_TAG=$release_tag" >> $GITHUB_ENV
@@ -668,13 +696,20 @@ jobs:
         run: |
           echo "RELEASE_BASE=${{ needs.build-android.outputs.release_base }}" >> $GITHUB_ENV
           echo "ARTIFACT_SUFFIX=${{ needs.build-android.outputs.artifact_suffix }}" >> $GITHUB_ENV
+          if [[ "${{ inputs.use_fixed_tag }}" == "true" ]]; then
+            echo "RELEASE_TAG=${{ needs.build-android.outputs.release_base }}" >> $GITHUB_ENV
+          else
+            echo "RELEASE_TAG=${{ inputs.release_prefix || 'picoclaw_fui' }}-${{ needs.build-android.outputs.release_base }}" >> $GITHUB_ENV
+          fi
 
       - name: Publish Release and upload artifacts
         uses: ncipollo/release-action@v1
         with:
-          tag: picoclaw_fui-${{ env.RELEASE_BASE }}
-          name: picoclaw_fui-${{ env.RELEASE_BASE }}
+          tag: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
           allowUpdates: true
+          removeArtifacts: ${{ inputs.use_fixed_tag }}
+          prerelease: true
           artifacts: |
             picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-arm_arm64.aab
             picoclaw_fui${{ env.ARTIFACT_SUFFIX }}-android-universal.apk
