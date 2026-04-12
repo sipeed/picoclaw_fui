@@ -113,12 +113,11 @@ class _ActionPanel extends StatefulWidget {
   final Color? scaffoldBackgroundColor;
 
   const _ActionPanel({
-    Key? key,
     required this.actions,
     required this.isBottom,
     required this.shellColor,
     this.scaffoldBackgroundColor,
-  }) : super(key: key);
+  });
 
   @override
   _ActionPanelState createState() => _ActionPanelState();
