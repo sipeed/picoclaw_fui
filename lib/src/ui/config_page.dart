@@ -12,13 +12,19 @@ import 'package:remixicon/remixicon.dart';
 const String _githubRepoUrl = 'https://github.com/sipeed/picoclaw_fui';
 
 class ConfigPage extends StatefulWidget {
-  const ConfigPage({super.key});
+  final ValueChanged<bool>? onDirtyChanged;
+  /// Called once with the save function, so MainShell can call it later.
+  final void Function(Future<void> Function()? saveFn)? onSaveFnReady;
+
+  const ConfigPage({super.key, this.onDirtyChanged, this.onSaveFnReady});
 
   @override
-  State<ConfigPage> createState() => _ConfigPageState();
+  State<ConfigPage> createState() => ConfigPageState();
 }
 
-class _ConfigPageState extends State<ConfigPage> {
+class ConfigPageState extends State<ConfigPage> {
+  static ConfigPageState? _current;
+  static ConfigPageState? get current => _current;
   final _hostController = TextEditingController();
   final _portController = TextEditingController();
   final _pathController = TextEditingController();
@@ -48,7 +54,8 @@ class _ConfigPageState extends State<ConfigPage> {
   @override
   void initState() {
     super.initState();
-    _loadConfig();
+    _current = this;
+    widget.onSaveFnReady?.call(_saveConfig);
 
     // Initialize theme focus nodes
     _themeFocusNodes.addAll(
@@ -60,6 +67,8 @@ class _ConfigPageState extends State<ConfigPage> {
     _portController.addListener(_markDirty);
     _pathController.addListener(_markDirty);
     _argsController.addListener(_markDirty);
+
+    _loadConfig();
   }
 
   String _getLanguageName(String code) {
@@ -87,6 +96,7 @@ class _ConfigPageState extends State<ConfigPage> {
             _pathController.text != _originalPath ||
             _argsController.text != _originalArgs)) {
       setState(() => _isDirty = true);
+      widget.onDirtyChanged?.call(true);
     }
   }
 
@@ -94,9 +104,15 @@ class _ConfigPageState extends State<ConfigPage> {
     // 统一从 ServiceManager 加载配置，所有平台使用相同方式
     final service = context.read<ServiceManager>();
     final allowed = await service.isDeviceFeedbackAllowed();
+
+    // 暂时移除监听器，避免设置 controller 值时触发 _markDirty
+    _hostController.removeListener(_markDirty);
+    _portController.removeListener(_markDirty);
+    _pathController.removeListener(_markDirty);
+    _argsController.removeListener(_markDirty);
+
     if (mounted) {
       setState(() {
-        // 如果publicMode为true，显示0.0.0.0，否则显示ServiceManager中的host
         _hostController.text = service.publicMode ? '0.0.0.0' : service.host;
         _portController.text = service.port.toString();
         _pathController.text = service.binaryPath;
@@ -109,10 +125,17 @@ class _ConfigPageState extends State<ConfigPage> {
         _isDirty = false;
       });
     }
+
+    // 恢复监听器
+    _hostController.addListener(_markDirty);
+    _portController.addListener(_markDirty);
+    _pathController.addListener(_markDirty);
+    _argsController.addListener(_markDirty);
   }
 
   @override
   void dispose() {
+    _current = null;
     _hostController.dispose();
     _portController.dispose();
     _pathController.dispose();
@@ -138,19 +161,34 @@ class _ConfigPageState extends State<ConfigPage> {
     final service = context.read<ServiceManager>();
     final port = int.tryParse(_portController.text);
 
-    if (port != null) {
-      final String? binaryArg = (Platform.isWindows || Platform.isAndroid)
-          ? null
-          : _pathController.text;
+    try {
+      if (port != null) {
+        final String? binaryArg = (Platform.isWindows || Platform.isAndroid)
+            ? null
+            : _pathController.text;
 
-      await service.updateConfig(
-        _hostController.text,
-        port,
-        binaryPath: binaryArg,
-        arguments: _argsController.text,
-        publicMode: service.publicMode,
-      );
+        await service.updateConfig(
+          _hostController.text,
+          port,
+          binaryPath: binaryArg,
+          arguments: _argsController.text,
+          publicMode: service.publicMode,
+        );
+      }
+    } catch (e) {
+      debugPrint('[ConfigPage] save failed: $e');
     }
+
+    // 无论保存成功还是失败，都重置 dirty 状态并通知父组件
+    if (!mounted) return;
+    setState(() {
+      _originalHost = _hostController.text;
+      _originalPort = _portController.text;
+      _originalPath = _pathController.text;
+      _originalArgs = _argsController.text;
+      _isDirty = false;
+    });
+    widget.onDirtyChanged?.call(false);
   }
 
   Future<void> _pickFile() async {

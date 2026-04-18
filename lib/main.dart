@@ -96,6 +96,50 @@ class _MainShellState extends State<MainShell>
     with TrayListener, WindowListener {
   int _selectedIndex = 0;
   ServiceManager? _serviceManager;
+  bool _configIsDirty = false;
+  Future<void> Function()? _saveFn;
+
+  void _onConfigDirtyChanged(bool dirty) {
+    setState(() => _configIsDirty = dirty);
+  }
+
+  void _onSaveFnReady(Future<void> Function()? fn) {
+    _saveFn = fn;
+  }
+
+  void _onNavTap(int index) async {
+    if (_selectedIndex == 3 && index != 3 && _configIsDirty) {
+      final l10n = AppLocalizations.of(context)!;
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.unsavedChanges),
+          content: Text(l10n.unsavedChangesHint),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.discard),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l10n.save),
+            ),
+          ],
+        ),
+      );
+      if (result == true) {
+        if (!mounted) return;
+        await _saveFn?.call();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.saved)),
+        );
+      } else {
+        _onConfigDirtyChanged(false);
+      }
+    }
+    setState(() => _selectedIndex = index);
+  }
 
   bool get _supportsTray => !Platform.isAndroid && !Platform.isIOS;
 
@@ -244,11 +288,14 @@ class _MainShellState extends State<MainShell>
               Consumer<ServiceManager>(
                 builder: (context, service, _) => WebViewPage(
                   url: service.webUrl,
-                  onGoToDashboard: () => setState(() => _selectedIndex = 0),
+                  onGoToDashboard: () => _onNavTap(0),
                 ),
               ),
               const LogPage(),
-              const ConfigPage(),
+              ConfigPage(
+                onDirtyChanged: _onConfigDirtyChanged,
+                onSaveFnReady: _onSaveFnReady,
+              ),
             ],
           ),
         ),
@@ -277,7 +324,7 @@ class _MainShellState extends State<MainShell>
 
     return TVFocusable(
       autofocus: index == 0,
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () => _onNavTap(index),
       borderRadius: BorderRadius.circular(10),
       focusBorderWidth: 2.5,
       focusBorderColor: colorScheme.onSurface,
