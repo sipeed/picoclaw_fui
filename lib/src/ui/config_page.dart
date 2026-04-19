@@ -172,6 +172,7 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
   Future<void> _saveConfig() async {
     final service = context.read<ServiceManager>();
     final port = int.tryParse(_portController.text);
+    final wasRunning = service.status == ServiceStatus.running;
 
     try {
       if (port != null) {
@@ -189,6 +190,12 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('[ConfigPage] save failed: $e');
+    }
+
+    // Restart service if it was running to apply new settings
+    if (wasRunning) {
+      await service.stop();
+      await service.start();
     }
 
     // 无论保存成功还是失败，都重置 dirty 状态并通知父组件
