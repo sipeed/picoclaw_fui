@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../generated/l10n/app_localizations.dart';
 import 'app_theme.dart';
 import 'device_feedback_models.dart';
 import 'firebase_device_reporter.dart';
@@ -180,8 +181,19 @@ class ServiceManager extends ChangeNotifier {
     final themeIndex = prefs.getInt('theme_mode') ?? 0;
     _currentThemeMode = AppThemeMode.values[themeIndex];
 
-    final localeCode = prefs.getString('locale') ?? 'en';
-    _currentLocale = Locale(localeCode);
+    final savedLocale = prefs.getString('locale');
+    if (savedLocale != null) {
+      _currentLocale = Locale(savedLocale);
+    } else {
+      // No saved preference, detect system language
+      final systemLocale = Platform.localeName; // e.g. "zh_CN", "en_US"
+      final systemLangCode = systemLocale.split('_').first.split('-').first;
+      // Only use system language if it's supported
+      final supportedCodes = AppLocalizations.supportedLocales.map((l) => l.languageCode).toSet();
+      _currentLocale = supportedCodes.contains(systemLangCode)
+          ? Locale(systemLangCode)
+          : const Locale('en');
+    }
 
     if (Platform.isAndroid) {
       _port = 18800;
