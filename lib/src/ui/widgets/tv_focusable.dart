@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:picoclaw_flutter_ui/src/generated/l10n/app_localizations.dart';
 
 /// 检查当前平台是否需要明显的焦点效果（TV/桌面）还是 subtle 效果
 bool get _useSubtleFocus {
@@ -204,32 +205,41 @@ class TVTextField extends StatelessWidget {
 
   void _showEditDialog(BuildContext context) {
     final textController = TextEditingController(text: controller.text);
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(labelText ?? '编辑'),
-        content: TextField(
-          controller: textController,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          autofocus: true,
-          decoration: InputDecoration(hintText: hintText),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        final btnStyle = TextStyle(color: colorScheme.secondary);
+        return AlertDialog(
+          title: Text(
+            labelText ?? 'Edit',
+            style: TextStyle(color: colorScheme.secondary, fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          TextButton(
-            onPressed: () {
-              controller.text = textController.text;
-              onChanged?.call(textController.text);
-              Navigator.pop(context);
-            },
-            child: const Text('确定'),
+          content: TextField(
+            controller: textController,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            autofocus: true,
+            style: TextStyle(color: colorScheme.secondary),
+            decoration: InputDecoration(hintText: hintText),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.cancel, style: btnStyle),
+            ),
+            TextButton(
+              onPressed: () {
+                controller.text = textController.text;
+                onChanged?.call(textController.text);
+                Navigator.pop(ctx);
+              },
+              child: Text(l10n.save, style: btnStyle),
+            ),
+          ],
+        );
+      },
     );
   }
 }

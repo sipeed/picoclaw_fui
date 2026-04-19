@@ -279,20 +279,30 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
         if (didPop) return;
         final shouldDiscard = await showDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(AppLocalizations.of(ctx)!.unsavedChanges),
-            content: Text(AppLocalizations.of(ctx)!.unsavedChangesHint),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(AppLocalizations.of(ctx)!.cancel),
+          builder: (ctx) {
+            final colorScheme = Theme.of(ctx).colorScheme;
+            final btnStyle = TextStyle(color: colorScheme.secondary);
+            return AlertDialog(
+              title: Text(
+                AppLocalizations.of(ctx)!.unsavedChanges,
+                style: TextStyle(color: colorScheme.secondary, fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: Text(AppLocalizations.of(ctx)!.discard),
+              content: Text(
+                AppLocalizations.of(ctx)!.unsavedChangesHint,
+                style: TextStyle(color: colorScheme.secondary),
               ),
-            ],
-          ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: Text(AppLocalizations.of(ctx)!.cancel, style: btnStyle),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: Text(AppLocalizations.of(ctx)!.discard, style: btnStyle),
+                ),
+              ],
+            );
+          },
         );
         if (shouldDiscard == true && context.mounted) {
           Navigator.of(context).pop();

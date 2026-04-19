@@ -69,7 +69,7 @@ class AppTheme {
     // 🎨 2025 Minimalist "Floating Tile" Aesthetic
     final factory = isDark ? FlexThemeData.dark : FlexThemeData.light;
 
-    return factory(
+    final theme = factory(
       colors: FlexSchemeColor(
         primary: primary, // Sidebar Background (Major semantic color)
         primaryContainer: primaryContainer, // Main Content Background
@@ -97,11 +97,15 @@ class AppTheme {
         navigationRailMutedUnselectedIcon: true,
         cardRadius: 12,
         cardElevation: 0,
+        dialogBackgroundSchemeColor: SchemeColor.surface,
+        dialogElevation: 0,
       ),
       visualDensity: VisualDensity.adaptivePlatformDensity,
       useMaterial3: true,
       fontFamily: GoogleFonts.inter().fontFamily,
-    ).copyWith(
+    );
+
+    return theme.copyWith(
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: primary,
         selectedIconTheme: IconThemeData(
@@ -122,6 +126,10 @@ class AppTheme {
           ),
         ),
       ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: secondary),
+      ),
+      colorScheme: theme.colorScheme.copyWith(secondary: secondary),
     );
   }
 }
