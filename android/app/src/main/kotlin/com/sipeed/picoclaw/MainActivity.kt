@@ -6,16 +6,31 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : FlutterActivity() {
+    companion object {
+        private const val TAG = "MainActivity"
+    }
 
     private var methodChannel: PicoClawMethodChannel? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        logIncomingIntent(intent)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         methodChannel = PicoClawMethodChannel(this, flutterEngine)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        logIncomingIntent(intent)
     }
 
     override fun onResume() {
@@ -42,5 +57,12 @@ class MainActivity : FlutterActivity() {
         methodChannel?.dispose()
         methodChannel = null
         super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    private fun logIncomingIntent(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == BuildConfig.PICOCLAW_UMENG_LINK_SCHEME) {
+            Log.i(TAG, "Received Umeng link: $data")
+        }
     }
 }

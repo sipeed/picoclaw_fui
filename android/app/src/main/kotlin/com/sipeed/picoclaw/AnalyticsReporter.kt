@@ -8,6 +8,8 @@ import android.os.Handler
 import android.os.Looper
 import com.umeng.analytics.MobclickAgent
 import com.umeng.commonsdk.UMConfigure
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 object AnalyticsReporter {
     private const val DEVICE_REPORT_EVENT = "device_feedback_report"
@@ -125,8 +127,9 @@ object AnalyticsReporter {
             )
         }
         
-        // 2. 检查SDK初始化状态
-        if (!umengInitialized) {
+        // 2. 检查SDK初始化状态。若 Dart 侧已允许上传但当前进程尚未完成 init，
+        // 则在真正上报前补一次同步初始化，避免冷启动或竞态导致首次上报失败。
+        if (!ensureInitializedForUpload(context.applicationContext)) {
             android.util.Log.e("AnalyticsReporter", "Umeng SDK not initialized")
             return mapOf<String, Any>(
                 "success" to false,
@@ -237,6 +240,54 @@ object AnalyticsReporter {
                 "errorType" to "SDK_ERROR",
                 "message" to "Umeng SDK error: ${e.message ?: e.javaClass.simpleName}",
             )
+        }
+    }
+
+    private fun ensureInitializedForUpload(context: Context): Boolean {
+        if (umengInitialized) {
+            return true
+        }
+        if (!isUmengProviderEnabled()) {
+            return false
+        }
+
+        android.util.Log.d(
+            "AnalyticsReporter",
+            "Umeng SDK not ready at upload time, attempting fallback initialization...",
+        )
+
+        return try {
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                performInit(context)
+                umengInitialized
+            } else {
+                val latch = CountDownLatch(1)
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        performInit(context)
+                    } finally {
+                        latch.countDown()
+                    }
+                }
+
+                val completed = latch.await(5, TimeUnit.SECONDS)
+                if (!completed) {
+                    initError = "Timed out waiting for Umeng init on main thread."
+                    android.util.Log.e(
+                        "AnalyticsReporter",
+                        "Timed out waiting for fallback Umeng initialization",
+                    )
+                }
+                completed && umengInitialized
+            }
+        } catch (e: Exception) {
+            initError = e.message
+            android.util.Log.e(
+                "AnalyticsReporter",
+                "Fallback Umeng initialization failed: ${e.message}",
+                e,
+            )
+            false
         }
     }
 }

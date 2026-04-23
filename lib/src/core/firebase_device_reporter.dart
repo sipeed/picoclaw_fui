@@ -124,6 +124,7 @@ class FirebaseDeviceReporter {
     required String projectId,
     required String messagingSenderId,
     String? storageBucket,
+    DeviceTelemetrySnapshot? telemetrySnapshot,
   }) async {
     debugPrint('[Firebase] Starting device report upload...');
     debugPrint(
@@ -222,19 +223,24 @@ class FirebaseDeviceReporter {
       // 尝试设置用户属性以帮助识别
       try {
         await analytics.setUserProperty(name: 'install_id', value: installId);
+        if (telemetrySnapshot != null) {
+          await analytics.setUserProperty(
+            name: 'telemetry_state',
+            value: telemetrySnapshot.stateValue,
+          );
+        }
         debugPrint('[Firebase] User property set successfully');
       } catch (e) {
         debugPrint('[Firebase] WARNING: Failed to set user property: $e');
       }
 
-      await analytics.logEvent(
-        name: _eventName,
-        parameters: {
-          _parameterInstallId: installId,
-          _parameterOsVersion: info['osVersion'] ?? 'unknown',
-          _parameterAppVersion: info['appVersion'] ?? 'unknown',
-        },
+      final parameters = buildAnalyticsParameters(
+        installId: installId,
+        deviceInfo: info,
+        telemetrySnapshot: telemetrySnapshot,
       );
+
+      await analytics.logEvent(name: _eventName, parameters: parameters);
 
       debugPrint('[Firebase] Event logged to local queue successfully');
       debugPrint(
@@ -266,6 +272,22 @@ class FirebaseDeviceReporter {
         message: 'Analytics upload failed: $e',
       );
     }
+  }
+
+  Map<String, Object> buildAnalyticsParameters({
+    required String installId,
+    required Map<String, String> deviceInfo,
+    DeviceTelemetrySnapshot? telemetrySnapshot,
+  }) {
+    final parameters = <String, Object>{
+      _parameterInstallId: installId,
+      _parameterOsVersion: deviceInfo['osVersion'] ?? 'unknown',
+      _parameterAppVersion: deviceInfo['appVersion'] ?? 'unknown',
+    };
+    if (telemetrySnapshot != null) {
+      parameters.addAll(telemetrySnapshot.toFirebaseParameters());
+    }
+    return parameters;
   }
 
   Future<FirebaseAnalytics?> _getAnalytics({

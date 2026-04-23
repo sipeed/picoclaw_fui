@@ -57,6 +57,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- 友盟调试/唤起链接。仅匹配 appKey 对应 scheme，不绑定具体 debugkey 或 query。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${PICOCLAW_UMENG_LINK_SCHEME}" />
+            </intent-filter>
         </activity>
 
         <!-- PicoClaw 原生前台服务（运行 Go 二进制） -->

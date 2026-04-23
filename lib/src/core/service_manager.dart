@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../generated/l10n/app_localizations.dart';
 import 'app_theme.dart';
@@ -14,12 +15,51 @@ import '../native/core_service_adapter.dart';
 
 enum ServiceStatus { stopped, running, starting }
 
-class ServiceManager extends ChangeNotifier {
+class ServiceManager extends ChangeNotifier with WidgetsBindingObserver {
   static const List<Duration> _deviceFeedbackRetryDelays = [
     Duration(seconds: 15),
     Duration(minutes: 1),
     Duration(minutes: 5),
   ];
+  static const DeviceTelemetryThresholds _telemetryThresholds =
+      DeviceTelemetryThresholds();
+  static const String _prefsTelemetryCreatedAt = 'telemetry_created_at';
+  static const String _prefsTelemetryLastSeenAt = 'telemetry_last_seen_at';
+  static const String _prefsTelemetryLastLaunchAt = 'telemetry_last_launch_at';
+  static const String _prefsTelemetryLastForegroundAt =
+      'telemetry_last_foreground_at';
+  static const String _prefsTelemetryLastBackgroundAt =
+      'telemetry_last_background_at';
+  static const String _prefsTelemetryLastActiveAt = 'telemetry_last_active_at';
+  static const String _prefsTelemetryLastUploadAttemptAt =
+      'telemetry_last_upload_attempt_at';
+  static const String _prefsTelemetryLastUploadedAt =
+      'telemetry_last_uploaded_at';
+  static const String _prefsTelemetryLastSyncFailureAt =
+      'telemetry_last_sync_failure_at';
+  static const String _prefsTelemetryLastReachabilityLossAt =
+      'telemetry_last_reachability_loss_at';
+  static const String _prefsTelemetryLastReactivatedAt =
+      'telemetry_last_reactivated_at';
+  static const String _prefsTelemetryLastStateChangedAt =
+      'telemetry_last_state_changed_at';
+  static const String _prefsTelemetryLastUploadedSignature =
+      'telemetry_last_uploaded_signature';
+  static const String _prefsTelemetryLastFailureMessage =
+      'telemetry_last_failure_message';
+  static const String _prefsTelemetryLastStateReason =
+      'telemetry_last_state_reason';
+  static const String _prefsTelemetryLastDerivedState =
+      'telemetry_last_derived_state';
+  static const String _prefsTelemetryLaunchCount = 'telemetry_launch_count';
+  static const String _prefsTelemetryForegroundCount =
+      'telemetry_foreground_count';
+  static const String _prefsTelemetryUploadFailureCount =
+      'telemetry_upload_failure_count';
+  static const String _prefsTelemetryConsecutiveUploadFailures =
+      'telemetry_consecutive_upload_failures';
+  static const String _prefsTelemetryReachabilityLost =
+      'telemetry_reachability_lost';
   static const String _rawAnalyticsProvider = String.fromEnvironment(
     'PICOCLAW_ANALYTICS_PROVIDER',
     defaultValue: 'firebase',
@@ -50,17 +90,28 @@ class ServiceManager extends ChangeNotifier {
     'PICOCLAW_UMENG_CHANNEL',
     defaultValue: 'official',
   );
+  static const String _distributionChannel = String.fromEnvironment(
+    'PICOCLAW_DISTRIBUTION_CHANNEL',
+    defaultValue: _umengChannel,
+  );
+  static final bool _isTestEnvironment =
+      Platform.environment.containsKey('FLUTTER_TEST') ||
+      Platform.executable.contains('flutter_tester');
 
   static final ServiceManager _instance = ServiceManager._internal();
   factory ServiceManager() => _instance;
   ServiceManager._internal() {
-    if (!kIsWeb) {
+    if (!kIsWeb && !_isTestEnvironment) {
       try {
-        ProcessSignal.sigint.watch().listen((_) => stop());
+        _signalSubscriptions.add(
+          ProcessSignal.sigint.watch().listen((_) => stop()),
+        );
       } catch (_) {}
       try {
         if (!Platform.isWindows) {
-          ProcessSignal.sigterm.watch().listen((_) => stop());
+          _signalSubscriptions.add(
+            ProcessSignal.sigterm.watch().listen((_) => stop()),
+          );
         }
       } catch (_) {}
     }
@@ -74,11 +125,15 @@ class ServiceManager extends ChangeNotifier {
   Future<DeviceFeedbackUploadResult>? _deviceFeedbackUploadTask;
   Timer? _deviceFeedbackRetryTimer;
   int _deviceFeedbackRetryAttempt = 0;
+  String _cachedAppVersion = 'unknown';
+  DeviceTelemetrySnapshot? _lastTelemetrySnapshot;
+  final List<StreamSubscription<ProcessSignal>> _signalSubscriptions = [];
 
   String? get lastErrorCode => _lastErrorCode ?? _adapter.getLastErrorCode();
   String? get lastDeviceFeedbackSyncMessage => _lastDeviceFeedbackSyncMessage;
   bool get isDeviceFeedbackUploadInProgress =>
       _deviceFeedbackUploadTask != null;
+  DeviceTelemetrySnapshot? get lastTelemetrySnapshot => _lastTelemetrySnapshot;
 
   ServiceStatus _status = ServiceStatus.stopped;
   final List<String> _logs = [];
@@ -171,6 +226,7 @@ class ServiceManager extends ChangeNotifier {
   }
 
   Future<void> init() async {
+    WidgetsBinding.instance.addObserver(this);
     final prefs = await SharedPreferences.getInstance();
     _host = prefs.getString('host') ?? '127.0.0.1';
     _port = prefs.getInt('port') ?? 18800;
@@ -189,7 +245,9 @@ class ServiceManager extends ChangeNotifier {
       final systemLocale = Platform.localeName; // e.g. "zh_CN", "en_US"
       final systemLangCode = systemLocale.split('_').first.split('-').first;
       // Only use system language if it's supported
-      final supportedCodes = AppLocalizations.supportedLocales.map((l) => l.languageCode).toSet();
+      final supportedCodes = AppLocalizations.supportedLocales
+          .map((l) => l.languageCode)
+          .toSet();
       _currentLocale = supportedCodes.contains(systemLangCode)
           ? Locale(systemLangCode)
           : const Locale('en');
@@ -216,6 +274,10 @@ class ServiceManager extends ChangeNotifier {
       } catch (_) {}
     }
 
+    _cachedAppVersion = await _readAppVersion();
+    await recordTelemetryLaunch();
+    await recordTelemetryForeground();
+
     // 自动上报设备反馈（如果用户已同意且满足条件）
     unawaited(_autoUploadDeviceFeedbackIfNeeded());
 
@@ -239,6 +301,425 @@ class ServiceManager extends ChangeNotifier {
         notifyListeners();
       } catch (_) {}
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        unawaited(recordTelemetryForeground());
+        unawaited(_autoUploadDeviceFeedbackIfNeeded());
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        unawaited(recordTelemetryBackground());
+        break;
+    }
+  }
+
+  Future<void> recordTelemetryLaunch({DateTime? now}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final signalAt = (now ?? DateTime.now()).toUtc();
+    final store = _loadTelemetryStore(prefs);
+    final shouldMarkReactivated =
+        store.lastDerivedState == DeviceTelemetryState.unreachable ||
+        store.lastDerivedState == DeviceTelemetryState.suspectedUninstalled;
+    final updatedStore = store.copyWith(
+      createdAt: store.createdAt ?? signalAt,
+      lastSeenAt: signalAt,
+      lastLaunchAt: signalAt,
+      lastActiveAt: signalAt,
+      lastReactivatedAt: shouldMarkReactivated
+          ? signalAt
+          : store.lastReactivatedAt,
+      launchCount: store.launchCount + 1,
+    );
+    await _persistTelemetryStore(prefs, updatedStore);
+    await _refreshTelemetrySnapshot(prefs: prefs, now: signalAt, notify: false);
+  }
+
+  Future<void> recordTelemetryForeground({DateTime? now}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final signalAt = (now ?? DateTime.now()).toUtc();
+    final store = _loadTelemetryStore(prefs);
+    final shouldMarkReactivated =
+        store.lastDerivedState == DeviceTelemetryState.unreachable ||
+        store.lastDerivedState == DeviceTelemetryState.suspectedUninstalled;
+    final updatedStore = store.copyWith(
+      createdAt: store.createdAt ?? signalAt,
+      lastSeenAt: signalAt,
+      lastForegroundAt: signalAt,
+      lastActiveAt: signalAt,
+      lastReactivatedAt: shouldMarkReactivated
+          ? signalAt
+          : store.lastReactivatedAt,
+      foregroundCount: store.foregroundCount + 1,
+    );
+    await _persistTelemetryStore(prefs, updatedStore);
+    await _refreshTelemetrySnapshot(prefs: prefs, now: signalAt, notify: false);
+  }
+
+  Future<void> recordTelemetryBackground({DateTime? now}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final signalAt = (now ?? DateTime.now()).toUtc();
+    final store = _loadTelemetryStore(prefs);
+    final updatedStore = store.copyWith(
+      createdAt: store.createdAt ?? signalAt,
+      lastSeenAt: signalAt,
+      lastBackgroundAt: signalAt,
+    );
+    await _persistTelemetryStore(prefs, updatedStore);
+    await _refreshTelemetrySnapshot(prefs: prefs, now: signalAt, notify: false);
+  }
+
+  Future<DeviceTelemetrySnapshot> getDeviceTelemetrySnapshot({
+    DateTime? now,
+  }) async {
+    return _refreshTelemetrySnapshot(now: now, notify: false);
+  }
+
+  Future<void> recordTelemetryUploadAttempt({DateTime? now}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final signalAt = (now ?? DateTime.now()).toUtc();
+    final store = _loadTelemetryStore(
+      prefs,
+    ).copyWith(lastUploadAttemptAt: signalAt);
+    await _persistTelemetryStore(prefs, store);
+  }
+
+  Future<void> recordTelemetryUploadSuccess(
+    DeviceTelemetrySnapshot snapshot, {
+    DateTime? now,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final signalAt = (now ?? DateTime.now()).toUtc();
+    final currentStore = _loadTelemetryStore(prefs);
+    final store = currentStore.copyWith(
+      lastUploadedAt: signalAt,
+      lastUploadedSignature: snapshot.buildUploadSignature(),
+      lastFailureMessage: '',
+      uploadFailureCount: 0,
+      consecutiveUploadFailures: 0,
+      reachabilityLost: false,
+      lastReactivatedAt: snapshot.state == DeviceTelemetryState.reinstalled
+          ? signalAt
+          : currentStore.lastReactivatedAt,
+    );
+    await _persistTelemetryStore(prefs, store);
+    final refreshedSnapshot = await _refreshTelemetrySnapshot(
+      prefs: prefs,
+      now: signalAt,
+      notify: false,
+    );
+    final normalizedStore = _loadTelemetryStore(
+      prefs,
+    ).copyWith(lastUploadedSignature: refreshedSnapshot.buildUploadSignature());
+    await _persistTelemetryStore(prefs, normalizedStore);
+    _lastTelemetrySnapshot = await _refreshTelemetrySnapshot(
+      prefs: prefs,
+      now: signalAt,
+      notify: false,
+    );
+  }
+
+  Future<void> recordTelemetryUploadFailure(
+    String message, {
+    DateTime? now,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final signalAt = (now ?? DateTime.now()).toUtc();
+    final store = _loadTelemetryStore(prefs);
+    final nextConsecutiveFailures = store.consecutiveUploadFailures + 1;
+    final reachabilityLost =
+        nextConsecutiveFailures >=
+            _telemetryThresholds.reachabilityFailureThreshold ||
+        store.reachabilityLost;
+    final updatedStore = store.copyWith(
+      lastSyncFailureAt: signalAt,
+      lastFailureMessage: message,
+      uploadFailureCount: store.uploadFailureCount + 1,
+      consecutiveUploadFailures: nextConsecutiveFailures,
+      reachabilityLost: reachabilityLost,
+      lastReachabilityLossAt: reachabilityLost
+          ? (store.lastReachabilityLossAt ?? signalAt)
+          : store.lastReachabilityLossAt,
+    );
+    await _persistTelemetryStore(prefs, updatedStore);
+    await _refreshTelemetrySnapshot(prefs: prefs, now: signalAt, notify: false);
+  }
+
+  Future<void> clearTelemetryState() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in const [
+      _prefsTelemetryCreatedAt,
+      _prefsTelemetryLastSeenAt,
+      _prefsTelemetryLastLaunchAt,
+      _prefsTelemetryLastForegroundAt,
+      _prefsTelemetryLastBackgroundAt,
+      _prefsTelemetryLastActiveAt,
+      _prefsTelemetryLastUploadAttemptAt,
+      _prefsTelemetryLastUploadedAt,
+      _prefsTelemetryLastSyncFailureAt,
+      _prefsTelemetryLastReachabilityLossAt,
+      _prefsTelemetryLastReactivatedAt,
+      _prefsTelemetryLastStateChangedAt,
+      _prefsTelemetryLastUploadedSignature,
+      _prefsTelemetryLastFailureMessage,
+      _prefsTelemetryLastStateReason,
+      _prefsTelemetryLastDerivedState,
+      _prefsTelemetryLaunchCount,
+      _prefsTelemetryForegroundCount,
+      _prefsTelemetryUploadFailureCount,
+      _prefsTelemetryConsecutiveUploadFailures,
+      _prefsTelemetryReachabilityLost,
+    ]) {
+      await prefs.remove(key);
+    }
+    _lastTelemetrySnapshot = null;
+  }
+
+  Future<DeviceTelemetryRuntimeContext> _buildTelemetryRuntimeContext() async {
+    if (_cachedAppVersion == 'unknown') {
+      _cachedAppVersion = await _readAppVersion();
+    }
+    return DeviceTelemetryRuntimeContext(
+      platform: Platform.operatingSystem,
+      appVersion: _cachedAppVersion,
+      channel: _distributionChannel.trim().isEmpty
+          ? 'official'
+          : _distributionChannel,
+      region: _resolveTelemetryRegion(),
+      provider: _deviceFeedbackProvider.name,
+    );
+  }
+
+  String _resolveTelemetryRegion() {
+    final countryCode = _currentLocale.countryCode;
+    if (countryCode != null && countryCode.isNotEmpty) {
+      return countryCode.toLowerCase();
+    }
+    return _currentLocale.languageCode.toLowerCase();
+  }
+
+  Future<String> _readAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      return info.version;
+    } catch (_) {
+      return 'unknown';
+    }
+  }
+
+  DeviceTelemetryStore _loadTelemetryStore(SharedPreferences prefs) {
+    return DeviceTelemetryStore(
+      createdAt: _readTimestamp(prefs, _prefsTelemetryCreatedAt),
+      lastSeenAt: _readTimestamp(prefs, _prefsTelemetryLastSeenAt),
+      lastLaunchAt: _readTimestamp(prefs, _prefsTelemetryLastLaunchAt),
+      lastForegroundAt: _readTimestamp(prefs, _prefsTelemetryLastForegroundAt),
+      lastBackgroundAt: _readTimestamp(prefs, _prefsTelemetryLastBackgroundAt),
+      lastActiveAt: _readTimestamp(prefs, _prefsTelemetryLastActiveAt),
+      lastUploadAttemptAt: _readTimestamp(
+        prefs,
+        _prefsTelemetryLastUploadAttemptAt,
+      ),
+      lastUploadedAt: _readTimestamp(prefs, _prefsTelemetryLastUploadedAt),
+      lastSyncFailureAt: _readTimestamp(
+        prefs,
+        _prefsTelemetryLastSyncFailureAt,
+      ),
+      lastReachabilityLossAt: _readTimestamp(
+        prefs,
+        _prefsTelemetryLastReachabilityLossAt,
+      ),
+      lastReactivatedAt: _readTimestamp(
+        prefs,
+        _prefsTelemetryLastReactivatedAt,
+      ),
+      lastStateChangedAt: _readTimestamp(
+        prefs,
+        _prefsTelemetryLastStateChangedAt,
+      ),
+      lastUploadedSignature: prefs.getString(
+        _prefsTelemetryLastUploadedSignature,
+      ),
+      lastFailureMessage: prefs.getString(_prefsTelemetryLastFailureMessage),
+      lastStateReason: prefs.getString(_prefsTelemetryLastStateReason),
+      lastDerivedState: DeviceTelemetryState.fromWireValue(
+        prefs.getString(_prefsTelemetryLastDerivedState),
+      ),
+      launchCount: prefs.getInt(_prefsTelemetryLaunchCount) ?? 0,
+      foregroundCount: prefs.getInt(_prefsTelemetryForegroundCount) ?? 0,
+      uploadFailureCount: prefs.getInt(_prefsTelemetryUploadFailureCount) ?? 0,
+      consecutiveUploadFailures:
+          prefs.getInt(_prefsTelemetryConsecutiveUploadFailures) ?? 0,
+      reachabilityLost: prefs.getBool(_prefsTelemetryReachabilityLost) ?? false,
+    );
+  }
+
+  Future<void> _persistTelemetryStore(
+    SharedPreferences prefs,
+    DeviceTelemetryStore store,
+  ) async {
+    await _writeTimestamp(prefs, _prefsTelemetryCreatedAt, store.createdAt);
+    await _writeTimestamp(prefs, _prefsTelemetryLastSeenAt, store.lastSeenAt);
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastLaunchAt,
+      store.lastLaunchAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastForegroundAt,
+      store.lastForegroundAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastBackgroundAt,
+      store.lastBackgroundAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastActiveAt,
+      store.lastActiveAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastUploadAttemptAt,
+      store.lastUploadAttemptAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastUploadedAt,
+      store.lastUploadedAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastSyncFailureAt,
+      store.lastSyncFailureAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastReachabilityLossAt,
+      store.lastReachabilityLossAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastReactivatedAt,
+      store.lastReactivatedAt,
+    );
+    await _writeTimestamp(
+      prefs,
+      _prefsTelemetryLastStateChangedAt,
+      store.lastStateChangedAt,
+    );
+    await _writeString(
+      prefs,
+      _prefsTelemetryLastUploadedSignature,
+      store.lastUploadedSignature,
+    );
+    await _writeString(
+      prefs,
+      _prefsTelemetryLastFailureMessage,
+      store.lastFailureMessage,
+    );
+    await _writeString(
+      prefs,
+      _prefsTelemetryLastStateReason,
+      store.lastStateReason,
+    );
+    await _writeString(
+      prefs,
+      _prefsTelemetryLastDerivedState,
+      store.lastDerivedState.wireValue,
+    );
+    await prefs.setInt(_prefsTelemetryLaunchCount, store.launchCount);
+    await prefs.setInt(_prefsTelemetryForegroundCount, store.foregroundCount);
+    await prefs.setInt(
+      _prefsTelemetryUploadFailureCount,
+      store.uploadFailureCount,
+    );
+    await prefs.setInt(
+      _prefsTelemetryConsecutiveUploadFailures,
+      store.consecutiveUploadFailures,
+    );
+    await prefs.setBool(
+      _prefsTelemetryReachabilityLost,
+      store.reachabilityLost,
+    );
+  }
+
+  Future<DeviceTelemetrySnapshot> _refreshTelemetrySnapshot({
+    SharedPreferences? prefs,
+    DateTime? now,
+    bool notify = true,
+  }) async {
+    final sharedPrefs = prefs ?? await SharedPreferences.getInstance();
+    final derivedAt = (now ?? DateTime.now()).toUtc();
+    final context = await _buildTelemetryRuntimeContext();
+    var store = _loadTelemetryStore(sharedPrefs);
+    final initialSnapshot = DeviceTelemetryDeriver.derive(
+      store: store,
+      context: context,
+      thresholds: _telemetryThresholds,
+      now: derivedAt,
+    );
+    final stateChanged =
+        initialSnapshot.state != store.lastDerivedState ||
+        initialSnapshot.stateReason != store.lastStateReason;
+    store = store.copyWith(
+      lastDerivedState: initialSnapshot.state,
+      lastStateReason: initialSnapshot.stateReason,
+      lastStateChangedAt: stateChanged
+          ? derivedAt
+          : (store.lastStateChangedAt ?? derivedAt),
+      lastActiveAt: initialSnapshot.lastActiveAt,
+    );
+    await _persistTelemetryStore(sharedPrefs, store);
+    final finalSnapshot = DeviceTelemetryDeriver.derive(
+      store: store,
+      context: context,
+      thresholds: _telemetryThresholds,
+      now: derivedAt,
+    );
+    _lastTelemetrySnapshot = finalSnapshot;
+    if (notify) {
+      notifyListeners();
+    }
+    return finalSnapshot;
+  }
+
+  DateTime? _readTimestamp(SharedPreferences prefs, String key) {
+    final raw = prefs.getString(key);
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(raw)?.toUtc();
+  }
+
+  Future<void> _writeTimestamp(
+    SharedPreferences prefs,
+    String key,
+    DateTime? value,
+  ) async {
+    if (value == null) {
+      await prefs.remove(key);
+      return;
+    }
+    await prefs.setString(key, value.toUtc().toIso8601String());
+  }
+
+  Future<void> _writeString(
+    SharedPreferences prefs,
+    String key,
+    String? value,
+  ) async {
+    if (value == null || value.isEmpty) {
+      await prefs.remove(key);
+      return;
+    }
+    await prefs.setString(key, value);
   }
 
   Future<void> _autoUploadDeviceFeedbackIfNeeded() async {
@@ -350,14 +831,24 @@ class ServiceManager extends ChangeNotifier {
   }
 
   Future<bool> shouldAutoUploadDeviceFeedbackReport() async {
-    switch (_deviceFeedbackProvider) {
-      case DeviceFeedbackProvider.firebase:
-        return _firebaseReporter.shouldUpload();
-      case DeviceFeedbackProvider.umeng:
-        return _umengReporter.shouldUpload();
-      case DeviceFeedbackProvider.none:
-        return false;
+    if (!await isDeviceFeedbackAllowed()) {
+      return false;
     }
+
+    final snapshot = await getDeviceTelemetrySnapshot();
+    final signatureChanged =
+        snapshot.lastUploadedSignature == null ||
+        snapshot.lastUploadedSignature != snapshot.buildUploadSignature();
+
+    final providerRequestedUpload = switch (_deviceFeedbackProvider) {
+      DeviceFeedbackProvider.firebase => _firebaseReporter.shouldUpload(),
+      DeviceFeedbackProvider.umeng => _umengReporter.shouldUpload(),
+      DeviceFeedbackProvider.none => Future<bool>.value(false),
+    };
+
+    return signatureChanged ||
+        snapshot.isStale ||
+        await providerRequestedUpload;
   }
 
   Future<void> setDeviceFeedbackUploadAllowed(bool allowed) async {
@@ -409,6 +900,9 @@ class ServiceManager extends ChangeNotifier {
 
   Future<DeviceFeedbackUploadResult>
   _uploadDeviceFeedbackReportInternal() async {
+    final attemptAt = DateTime.now().toUtc();
+    await recordTelemetryUploadAttempt(now: attemptAt);
+    final telemetrySnapshot = await getDeviceTelemetrySnapshot(now: attemptAt);
     late final DeviceFeedbackUploadResult result;
     switch (_deviceFeedbackProvider) {
       case DeviceFeedbackProvider.firebase:
@@ -442,6 +936,7 @@ class ServiceManager extends ChangeNotifier {
           storageBucket: _firebaseStorageBucket.isEmpty
               ? null
               : _firebaseStorageBucket,
+          telemetrySnapshot: telemetrySnapshot,
         );
         break;
       case DeviceFeedbackProvider.umeng:
@@ -455,6 +950,7 @@ class ServiceManager extends ChangeNotifier {
         result = await _umengReporter.uploadDeviceReport(
           appKey: _umengAppKey,
           channel: _umengChannel,
+          telemetrySnapshot: telemetrySnapshot,
         );
         break;
       case DeviceFeedbackProvider.none:
@@ -466,8 +962,10 @@ class ServiceManager extends ChangeNotifier {
     }
     _lastDeviceFeedbackSyncMessage = result.message;
     if (result.success) {
+      await recordTelemetryUploadSuccess(telemetrySnapshot, now: attemptAt);
       _resetDeviceFeedbackRetryState(notify: false);
     } else {
+      await recordTelemetryUploadFailure(result.message, now: attemptAt);
       await _scheduleDeviceFeedbackRetryIfNeeded(result);
     }
     _addLog(
@@ -685,7 +1183,13 @@ class ServiceManager extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _deviceFeedbackRetryTimer?.cancel();
+    _notifyTimer?.cancel();
     _nativePollingTimer?.cancel();
+    for (final subscription in _signalSubscriptions) {
+      subscription.cancel();
+    }
     super.dispose();
   }
 }

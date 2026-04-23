@@ -35,6 +35,11 @@ val dartDefines = decodedDartDefines(project)
 val analyticsProvider = dartDefines["PICOCLAW_ANALYTICS_PROVIDER"] ?: "firebase"
 val umengAppKey = dartDefines["PICOCLAW_UMENG_APP_KEY"] ?: ""
 val umengChannel = dartDefines["PICOCLAW_UMENG_CHANNEL"] ?: "official"
+val umengLinkScheme = if (umengAppKey.isNotBlank()) {
+    "um.$umengAppKey"
+} else {
+    "um.placeholder"
+}
 
 // Firebase Configuration from dart-define
 val firebaseAppId = dartDefines["PICOCLAW_FIREBASE_APP_ID"] ?: ""
@@ -70,9 +75,11 @@ android {
         buildConfigField("String", "PICOCLAW_ANALYTICS_PROVIDER", analyticsProvider.toQuotedBuildConfigValue())
         buildConfigField("String", "PICOCLAW_UMENG_APP_KEY", umengAppKey.toQuotedBuildConfigValue())
         buildConfigField("String", "PICOCLAW_UMENG_CHANNEL", umengChannel.toQuotedBuildConfigValue())
+        buildConfigField("String", "PICOCLAW_UMENG_LINK_SCHEME", umengLinkScheme.toQuotedBuildConfigValue())
         // Pass values to AndroidManifest.xml via manifestPlaceholders
         manifestPlaceholders["PICOCLAW_UMENG_APP_KEY"] = umengAppKey
         manifestPlaceholders["PICOCLAW_UMENG_CHANNEL"] = umengChannel
+        manifestPlaceholders["PICOCLAW_UMENG_LINK_SCHEME"] = umengLinkScheme
     }
 
     signingConfigs {

@@ -107,6 +107,7 @@ class UmengDeviceReporter {
   Future<DeviceFeedbackUploadResult> uploadDeviceReport({
     required String appKey,
     String channel = _defaultChannel,
+    DeviceTelemetrySnapshot? telemetrySnapshot,
   }) async {
     debugPrint('[Umeng] === uploadDeviceReport START ===');
 
@@ -143,15 +144,14 @@ class UmengDeviceReporter {
 
     try {
       debugPrint('[Umeng] Step 4: Calling native channel...');
-      final result = await PicoClawChannel.uploadUmengDeviceReport({
-        'installId': installId,
-        'platform': info['platform'] ?? 'unknown',
-        'deviceModel': info['deviceModel'] ?? 'unknown',
-        'systemVersion': info['systemVersion'] ?? 'unknown',
-        'clientType': 'picoclaw_flutter_ui',
-        'updatedAt': now,
-        'channel': channel.trim().isEmpty ? _defaultChannel : channel.trim(),
-      });
+      final payload = buildPayload(
+        installId: installId,
+        deviceInfo: info,
+        updatedAt: now,
+        channel: channel,
+        telemetrySnapshot: telemetrySnapshot,
+      );
+      final result = await PicoClawChannel.uploadUmengDeviceReport(payload);
 
       final success = result['success'] == true;
       final message = result['message']?.toString() ?? 'Unknown Umeng error.';
@@ -187,5 +187,27 @@ class UmengDeviceReporter {
         deviceInfo: info,
       );
     }
+  }
+
+  Map<String, String> buildPayload({
+    required String installId,
+    required Map<String, String> deviceInfo,
+    required String updatedAt,
+    required String channel,
+    DeviceTelemetrySnapshot? telemetrySnapshot,
+  }) {
+    final payload = <String, String>{
+      'installId': installId,
+      'platform': deviceInfo['platform'] ?? 'unknown',
+      'deviceModel': deviceInfo['deviceModel'] ?? 'unknown',
+      'systemVersion': deviceInfo['systemVersion'] ?? 'unknown',
+      'clientType': 'picoclaw_flutter_ui',
+      'updatedAt': updatedAt,
+      'channel': channel.trim().isEmpty ? _defaultChannel : channel.trim(),
+    };
+    if (telemetrySnapshot != null) {
+      payload.addAll(telemetrySnapshot.toUmengPayload());
+    }
+    return payload;
   }
 }
