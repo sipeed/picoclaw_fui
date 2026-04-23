@@ -1040,7 +1040,7 @@ class _FocusableButtonState extends State<FocusableButton> {
                 style: widget.style?.copyWith(
                   side: WidgetStateProperty.all(
                     isFocused
-                        ? BorderSide(color: colorScheme.primary, width: 3)
+                        ? BorderSide(color: colorScheme.primary, width: 1)
                         : BorderSide.none,
                   ),
                 ),
