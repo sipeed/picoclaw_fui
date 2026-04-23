@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 
+import '../core/picoclaw_channel.dart';
 import 'core_service_adapter.dart';
 
 class AndroidCoreServiceAdapter implements CoreServiceAdapter {
@@ -72,6 +73,11 @@ class AndroidCoreServiceAdapter implements CoreServiceAdapter {
       _lastErrorCode = 'core.get_autostart_failed';
       return false;
     }
+  }
+
+  @override
+  Future<String> getCoreVersion() async {
+    return PicoClawChannel.getCoreVersion();
   }
 
   @override

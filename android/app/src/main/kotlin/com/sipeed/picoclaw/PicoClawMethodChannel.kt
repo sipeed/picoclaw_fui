@@ -69,6 +69,30 @@ class PicoClawMethodChannel(
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
     private val healthChecker = HealthChecker()
 
+    private fun readCoreVersion(): String {
+        return try {
+            val binaryFile = File(context.applicationInfo.nativeLibraryDir, "libpicoclaw.so")
+            if (!binaryFile.exists()) {
+                "unknown"
+            } else {
+                val process = ProcessBuilder(binaryFile.absolutePath, "version")
+                    .directory(context.filesDir)
+                    .redirectErrorStream(true)
+                    .start()
+                val output = process.inputStream.bufferedReader().readText().trim()
+                val exitCode = process.waitFor()
+                if (exitCode == 0 && output.isNotBlank()) {
+                    output.lineSequence().first().trim()
+                } else {
+                    "unknown"
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "getCoreVersion failed: ${e.message}")
+            "unknown"
+        }
+    }
+
     init {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -181,6 +205,9 @@ class PicoClawMethodChannel(
                     } catch (e: Exception) {
                         result.error("GET_AUTO_START_FAILED", e.message, null)
                     }
+                }
+                "getCoreVersion" -> {
+                    result.success(readCoreVersion())
                 }
                 "getConfigPath" -> {
                     val configFile = File(context.filesDir, "picoclaw/config.json")

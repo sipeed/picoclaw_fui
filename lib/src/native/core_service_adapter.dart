@@ -7,11 +7,13 @@ abstract class CoreServiceAdapter {
   Future<Map<String, dynamic>> checkHealth();
   Future<bool> setAutoStart(bool enabled);
   Future<bool> getAutoStart();
+  Future<String> getCoreVersion();
   String? getLastErrorCode();
 
   /// Install a log handler callback which the adapter should call with
   /// each new log line (or combined message). Pass `null` to clear.
   void setLogHandler(void Function(String)? handler);
+
   /// Validate that the binary (optionally at [path]) is present and usable.
   /// Returns true if valid; adapters should set an internal last error code
   /// accessible via `getLastErrorCode()` on failure.

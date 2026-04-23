@@ -71,6 +71,16 @@ class PicoClawChannel {
     return result ?? false;
   }
 
+  static Future<String> getCoreVersion() async {
+    try {
+      final result = await _channel.invokeMethod<String>('getCoreVersion');
+      final value = result?.trim() ?? '';
+      return value.isEmpty ? 'unknown' : value;
+    } catch (_) {
+      return 'unknown';
+    }
+  }
+
   /// 获取 config.json 文件路径
   static Future<String> getConfigPath() async {
     final result = await _channel.invokeMethod<String>('getConfigPath');

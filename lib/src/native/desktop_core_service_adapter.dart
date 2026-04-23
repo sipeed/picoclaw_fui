@@ -320,6 +320,27 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
   }
 
   @override
+  Future<String> getCoreVersion() async {
+    final exe = await _resolveExePath();
+    if (exe == null) return 'unknown';
+
+    try {
+      if (!Platform.isWindows) {
+        await Process.run('chmod', ['+x', exe]);
+      }
+
+      final result = await Process.run(exe, const ['version']);
+      if (result.exitCode != 0) return 'unknown';
+
+      final output = result.stdout.toString().trim();
+      if (output.isEmpty) return 'unknown';
+      return output.split('\n').first.trim();
+    } catch (_) {
+      return 'unknown';
+    }
+  }
+
+  @override
   Future<bool> setAutoStart(bool enabled) async => true;
 
   @override

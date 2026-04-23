@@ -503,6 +503,17 @@ class ServiceManager extends ChangeNotifier with WidgetsBindingObserver {
     return _currentLocale.languageCode.toLowerCase();
   }
 
+  Future<String> getAppVersion() async {
+    if (_cachedAppVersion == 'unknown') {
+      _cachedAppVersion = await _readAppVersion();
+    }
+    return _cachedAppVersion;
+  }
+
+  Future<String> getCoreVersion() async {
+    return _adapter.getCoreVersion();
+  }
+
   Future<String> _readAppVersion() async {
     try {
       final info = await PackageInfo.fromPlatform();
