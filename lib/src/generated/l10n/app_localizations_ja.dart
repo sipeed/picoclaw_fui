@@ -257,4 +257,26 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get selectLanguage => '言語を選択';
+
+  @override
+  String get about => '概要';
+
+  @override
+  String get aboutTitle => 'PicoClaw Flutter UI について';
+
+  @override
+  String get aboutDescription =>
+      'PicoClaw サービスを管理するためのクロスプラットフォーム Flutter クライアントです。';
+
+  @override
+  String get picoclawOfficial => 'PicoClaw 公式サイト';
+
+  @override
+  String get sipeedOfficial => 'Sipeed 公式サイト';
+
+  @override
+  String get openLinkFailed => '公式リンクを開けませんでした。';
+
+  @override
+  String get close => '閉じる';
 }

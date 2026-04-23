@@ -96,5 +96,12 @@
   "discard": "छोड़ें",
   "saved": "सहेजे गए",
   "language": "भाषा",
-  "selectLanguage": "भाषा चुनें"
+  "selectLanguage": "भाषा चुनें",
+  "about": "परिचय",
+  "aboutTitle": "PicoClaw Flutter UI के बारे में",
+  "aboutDescription": "PicoClaw सेवा को प्रबंधित करने के लिए एक क्रॉस-प्लेटफ़ॉर्म Flutter क्लाइंट।",
+  "picoclawOfficial": "PicoClaw आधिकारिक साइट",
+  "sipeedOfficial": "Sipeed आधिकारिक साइट",
+  "openLinkFailed": "आधिकारिक लिंक नहीं खुल सका।",
+  "close": "बंद करें"
 }

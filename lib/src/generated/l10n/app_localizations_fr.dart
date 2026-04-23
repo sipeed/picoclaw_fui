@@ -269,4 +269,26 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get selectLanguage => 'Sélectionner la langue';
+
+  @override
+  String get about => 'À propos';
+
+  @override
+  String get aboutTitle => 'À propos de PicoClaw Flutter UI';
+
+  @override
+  String get aboutDescription =>
+      'Un client Flutter multiplateforme pour gérer le service PicoClaw.';
+
+  @override
+  String get picoclawOfficial => 'Site officiel de PicoClaw';
+
+  @override
+  String get sipeedOfficial => 'Site officiel de Sipeed';
+
+  @override
+  String get openLinkFailed => 'Impossible d\'ouvrir le lien officiel.';
+
+  @override
+  String get close => 'Fermer';
 }

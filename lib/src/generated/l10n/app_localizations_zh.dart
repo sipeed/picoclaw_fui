@@ -255,4 +255,26 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get selectLanguage => '选择语言';
+
+  @override
+  String get about => '关于';
+
+  @override
+  String get aboutTitle => '关于 PicoClaw Flutter UI';
+
+  @override
+  String get aboutDescription =>
+      'PicoClaw Flutter UI 是一个用于管理 PicoClaw 服务的跨平台 Flutter 客户端。';
+
+  @override
+  String get picoclawOfficial => 'PicoClaw 官网';
+
+  @override
+  String get sipeedOfficial => 'Sipeed 官网';
+
+  @override
+  String get openLinkFailed => '无法打开官方链接。';
+
+  @override
+  String get close => '关闭';
 }

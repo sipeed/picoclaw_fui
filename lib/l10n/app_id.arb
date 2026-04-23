@@ -96,5 +96,12 @@
   "discard": "Buang",
   "saved": "Disimpan",
   "language": "Bahasa",
-  "selectLanguage": "Pilih bahasa"
+  "selectLanguage": "Pilih bahasa",
+  "about": "Tentang",
+  "aboutTitle": "Tentang PicoClaw Flutter UI",
+  "aboutDescription": "Klien Flutter lintas platform untuk mengelola layanan PicoClaw.",
+  "picoclawOfficial": "Situs Resmi PicoClaw",
+  "sipeedOfficial": "Situs Resmi Sipeed",
+  "openLinkFailed": "Gagal membuka tautan resmi.",
+  "close": "Tutup"
 }

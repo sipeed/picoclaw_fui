@@ -96,5 +96,12 @@
   "discard": "취소",
   "saved": "저장됨",
   "language": "언어",
-  "selectLanguage": "언어 선택"
+  "selectLanguage": "언어 선택",
+  "about": "정보",
+  "aboutTitle": "PicoClaw Flutter UI 정보",
+  "aboutDescription": "PicoClaw 서비스를 관리하기 위한 크로스 플랫폼 Flutter 클라이언트입니다.",
+  "picoclawOfficial": "PicoClaw 공식 사이트",
+  "sipeedOfficial": "Sipeed 공식 사이트",
+  "openLinkFailed": "공식 링크를 열 수 없습니다.",
+  "close": "닫기"
 }

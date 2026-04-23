@@ -18,6 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
+.agents
+.codex
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -51,4 +53,3 @@ app/bin/
 # User-specific configuration files
 .security.yml
 config.json*
-

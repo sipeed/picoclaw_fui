@@ -10,13 +10,29 @@ import 'package:picoclaw_flutter_ui/src/core/app_theme.dart';
 import 'package:remixicon/remixicon.dart';
 
 const String _githubRepoUrl = 'https://github.com/sipeed/picoclaw_fui';
+const String _picoclawOfficialUrl = 'https://picoclaw.io';
+const String _sipeedOfficialUrl = 'https://sipeed.com';
+const String _aboutProjectName = 'PicoClaw Flutter UI';
+
+typedef ExternalUrlLauncher = Future<bool> Function(Uri uri);
+
+Future<bool> _defaultExternalUrlLauncher(Uri uri) {
+  return launchUrl(uri, mode: LaunchMode.externalApplication);
+}
 
 class ConfigPage extends StatefulWidget {
   final ValueChanged<bool>? onDirtyChanged;
+
   /// Called once with the save function, so MainShell can call it later.
   final void Function(Future<void> Function()? saveFn)? onSaveFnReady;
+  final ExternalUrlLauncher externalUrlLauncher;
 
-  const ConfigPage({super.key, this.onDirtyChanged, this.onSaveFnReady});
+  const ConfigPage({
+    super.key,
+    this.onDirtyChanged,
+    this.onSaveFnReady,
+    this.externalUrlLauncher = _defaultExternalUrlLauncher,
+  });
 
   @override
   State<ConfigPage> createState() => ConfigPageState();
@@ -31,6 +47,7 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
   final _argsController = TextEditingController();
 
   // Focus nodes for TV navigation
+  final _aboutFocusNode = FocusNode();
   final _githubFocusNode = FocusNode();
   final _publicModeFocusNode = FocusNode();
   final _hostFocusNode = FocusNode();
@@ -143,6 +160,7 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
     _pathController.dispose();
     _argsController.dispose();
 
+    _aboutFocusNode.dispose();
     _githubFocusNode.dispose();
     _publicModeFocusNode.dispose();
     _hostFocusNode.dispose();
@@ -242,6 +260,72 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
     _togglePublicMode(!service.publicMode);
   }
 
+  Future<bool> _launchExternalUrl(Uri uri) async {
+    try {
+      final launched = await widget.externalUrlLauncher(uri);
+      if (launched) return true;
+    } catch (_) {}
+
+    if (!mounted) return false;
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.openLinkFailed)));
+    return false;
+  }
+
+  Future<void> _showAboutDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.aboutTitle),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _aboutProjectName,
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Text(l10n.aboutDescription),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                autofocus: true,
+                onPressed: () =>
+                    _launchExternalUrl(Uri.parse(_picoclawOfficialUrl)),
+                icon: const Icon(Icons.open_in_new),
+                label: Text(l10n.picoclawOfficial),
+              ),
+              TextButton.icon(
+                onPressed: () =>
+                    _launchExternalUrl(Uri.parse(_sipeedOfficialUrl)),
+                icon: const Icon(Icons.open_in_new),
+                label: Text(l10n.sipeedOfficial),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.close),
+          ),
+        ],
+      ),
+    );
+
+    if (mounted) {
+      _aboutFocusNode.requestFocus();
+    }
+  }
+
   Future<void> _toggleFirebase(BuildContext context) async {
     final service = context.read<ServiceManager>();
     final newValue = !_firebaseAllowed;
@@ -292,7 +376,11 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
             return AlertDialog(
               title: Text(
                 AppLocalizations.of(ctx)!.unsavedChanges,
-                style: TextStyle(color: colorScheme.secondary, fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: colorScheme.secondary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               content: Text(
                 AppLocalizations.of(ctx)!.unsavedChangesHint,
@@ -301,11 +389,17 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(AppLocalizations.of(ctx)!.cancel, style: btnStyle),
+                  child: Text(
+                    AppLocalizations.of(ctx)!.cancel,
+                    style: btnStyle,
+                  ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(true),
-                  child: Text(AppLocalizations.of(ctx)!.discard, style: btnStyle),
+                  child: Text(
+                    AppLocalizations.of(ctx)!.discard,
+                    style: btnStyle,
+                  ),
                 ),
               ],
             );
@@ -328,18 +422,51 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const Spacer(),
+                  Tooltip(
+                    message: l10n.about,
+                    child: FocusableButton(
+                      focusNode: _aboutFocusNode,
+                      onPressed: () {
+                        _showAboutDialog();
+                      },
+                      prevFocusNode: _aboutFocusNode,
+                      nextFocusNode: _publicModeFocusNode,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onSurface,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withAlpha(60),
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.info_outline, size: 18),
+                          const SizedBox(width: 6),
+                          Text(l10n.about),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   IconButton(
                     tooltip: 'GitHub',
                     focusNode: _githubFocusNode,
-                    icon: Icon(Remix.github_line),
+                    icon: const Icon(Remix.github_line),
                     onPressed: () async {
-                      final uri = Uri.parse(_githubRepoUrl);
-                      try {
-                        await launchUrl(
-                          uri,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      } catch (_) {}
+                      await _launchExternalUrl(Uri.parse(_githubRepoUrl));
                     },
                   ),
                 ],
@@ -353,7 +480,7 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
                   isPublicMode: isPublicMode,
                   onToggle: _togglePublicModeFromFocus,
                   onArrowDown: () => _hostFocusNode.requestFocus(),
-                  onArrowUp: () => _githubFocusNode.requestFocus(),
+                  onArrowUp: () => _aboutFocusNode.requestFocus(),
                 ),
               ),
               const SizedBox(height: 16),
@@ -661,11 +788,16 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.surface,
                       foregroundColor: Theme.of(context).colorScheme.onSurface,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                         side: BorderSide(
-                          color: Theme.of(context).colorScheme.outline.withAlpha(60),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withAlpha(60),
                         ),
                       ),
                     ),
@@ -674,10 +806,14 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
                       tooltip: l10n.selectLanguage,
                       onSelected: (locale) => service.setLocale(locale),
                       itemBuilder: (ctx) => AppLocalizations.supportedLocales
-                          .map((locale) => PopupMenuItem(
-                                value: locale,
-                                child: Text(_getLanguageName(locale.languageCode)),
-                              ))
+                          .map(
+                            (locale) => PopupMenuItem(
+                              value: locale,
+                              child: Text(
+                                _getLanguageName(locale.languageCode),
+                              ),
+                            ),
+                          )
                           .toList(),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

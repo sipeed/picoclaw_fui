@@ -104,5 +104,12 @@
   "discard": "Discard",
   "saved": "Saved",
   "language": "Language",
-  "selectLanguage": "Select Language"
+  "selectLanguage": "Select Language",
+  "about": "About",
+  "aboutTitle": "About PicoClaw Flutter UI",
+  "aboutDescription": "A cross-platform Flutter client for managing the PicoClaw service.",
+  "picoclawOfficial": "PicoClaw Official",
+  "sipeedOfficial": "Sipeed Official",
+  "openLinkFailed": "Couldn't open the official link.",
+  "close": "Close"
 }

@@ -266,4 +266,26 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get selectLanguage => 'Pilih bahasa';
+
+  @override
+  String get about => 'Tentang';
+
+  @override
+  String get aboutTitle => 'Tentang PicoClaw Flutter UI';
+
+  @override
+  String get aboutDescription =>
+      'Klien Flutter lintas platform untuk mengelola layanan PicoClaw.';
+
+  @override
+  String get picoclawOfficial => 'Situs Resmi PicoClaw';
+
+  @override
+  String get sipeedOfficial => 'Situs Resmi Sipeed';
+
+  @override
+  String get openLinkFailed => 'Gagal membuka tautan resmi.';
+
+  @override
+  String get close => 'Tutup';
 }

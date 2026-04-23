@@ -96,5 +96,12 @@
   "discard": "تجاهل",
   "saved": "تم الحفظ",
   "language": "اللغة",
-  "selectLanguage": "اختر اللغة"
+  "selectLanguage": "اختر اللغة",
+  "about": "حول",
+  "aboutTitle": "حول PicoClaw Flutter UI",
+  "aboutDescription": "عميل Flutter متعدد المنصات لإدارة خدمة PicoClaw.",
+  "picoclawOfficial": "موقع PicoClaw الرسمي",
+  "sipeedOfficial": "موقع Sipeed الرسمي",
+  "openLinkFailed": "تعذر فتح الرابط الرسمي.",
+  "close": "إغلاق"
 }

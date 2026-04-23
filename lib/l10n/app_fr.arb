@@ -96,5 +96,12 @@
   "discard": "Abandonner",
   "saved": "Enregistré",
   "language": "Langue",
-  "selectLanguage": "Sélectionner la langue"
+  "selectLanguage": "Sélectionner la langue",
+  "about": "À propos",
+  "aboutTitle": "À propos de PicoClaw Flutter UI",
+  "aboutDescription": "Un client Flutter multiplateforme pour gérer le service PicoClaw.",
+  "picoclawOfficial": "Site officiel de PicoClaw",
+  "sipeedOfficial": "Site officiel de Sipeed",
+  "openLinkFailed": "Impossible d'ouvrir le lien officiel.",
+  "close": "Fermer"
 }

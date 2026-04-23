@@ -258,4 +258,26 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get selectLanguage => '언어 선택';
+
+  @override
+  String get about => '정보';
+
+  @override
+  String get aboutTitle => 'PicoClaw Flutter UI 정보';
+
+  @override
+  String get aboutDescription =>
+      'PicoClaw 서비스를 관리하기 위한 크로스 플랫폼 Flutter 클라이언트입니다.';
+
+  @override
+  String get picoclawOfficial => 'PicoClaw 공식 사이트';
+
+  @override
+  String get sipeedOfficial => 'Sipeed 공식 사이트';
+
+  @override
+  String get openLinkFailed => '공식 링크를 열 수 없습니다.';
+
+  @override
+  String get close => '닫기';
 }

@@ -96,5 +96,12 @@
   "discard": "Отменить",
   "saved": "Сохранено",
   "language": "Язык",
-  "selectLanguage": "Выбрать язык"
+  "selectLanguage": "Выбрать язык",
+  "about": "О приложении",
+  "aboutTitle": "О PicoClaw Flutter UI",
+  "aboutDescription": "Кроссплатформенный Flutter-клиент для управления сервисом PicoClaw.",
+  "picoclawOfficial": "Официальный сайт PicoClaw",
+  "sipeedOfficial": "Официальный сайт Sipeed",
+  "openLinkFailed": "Не удалось открыть официальную ссылку.",
+  "close": "Закрыть"
 }

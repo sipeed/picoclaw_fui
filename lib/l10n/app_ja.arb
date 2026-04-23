@@ -96,5 +96,12 @@
   "discard": "破棄",
   "saved": "保存しました",
   "language": "言語",
-  "selectLanguage": "言語を選択"
+  "selectLanguage": "言語を選択",
+  "about": "概要",
+  "aboutTitle": "PicoClaw Flutter UI について",
+  "aboutDescription": "PicoClaw サービスを管理するためのクロスプラットフォーム Flutter クライアントです。",
+  "picoclawOfficial": "PicoClaw 公式サイト",
+  "sipeedOfficial": "Sipeed 公式サイト",
+  "openLinkFailed": "公式リンクを開けませんでした。",
+  "close": "閉じる"
 }

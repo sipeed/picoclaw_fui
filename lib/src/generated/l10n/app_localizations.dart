@@ -585,6 +585,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select Language'**
   String get selectLanguage;
+
+  /// No description provided for @about.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get about;
+
+  /// No description provided for @aboutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'About PicoClaw Flutter UI'**
+  String get aboutTitle;
+
+  /// No description provided for @aboutDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A cross-platform Flutter client for managing the PicoClaw service.'**
+  String get aboutDescription;
+
+  /// No description provided for @picoclawOfficial.
+  ///
+  /// In en, this message translates to:
+  /// **'PicoClaw Official'**
+  String get picoclawOfficial;
+
+  /// No description provided for @sipeedOfficial.
+  ///
+  /// In en, this message translates to:
+  /// **'Sipeed Official'**
+  String get sipeedOfficial;
+
+  /// No description provided for @openLinkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the official link.'**
+  String get openLinkFailed;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
 }
 
 class _AppLocalizationsDelegate
