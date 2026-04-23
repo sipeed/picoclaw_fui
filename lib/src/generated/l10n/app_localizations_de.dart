@@ -274,16 +274,16 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Eine plattformübergreifende Flutter-Oberfläche zur Verwaltung des PicoClaw-Dienstes.';
+      'PicoClaw ist eine plattformübergreifende Flutter-App zur Verwaltung des PicoClaw-Dienstes.';
 
   @override
-  String get aboutAppVersionLabel => 'PicoClaw version';
+  String get aboutAppVersionLabel => 'PicoClaw-Version';
 
   @override
-  String get aboutCoreVersionLabel => 'PicoClaw Core version';
+  String get aboutCoreVersionLabel => 'PicoClaw-Core-Version';
 
   @override
-  String get aboutVersionUnavailable => 'Unavailable';
+  String get aboutVersionUnavailable => 'Nicht verfügbar';
 
   @override
   String get picoclawOfficial => 'Offizielle PicoClaw-Website';
