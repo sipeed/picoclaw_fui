@@ -32,12 +32,7 @@ void main() {
           home: Scaffold(
             body: ConfigPage(
               externalUrlLauncher: launcher ?? ((_) async => true),
-              aboutInfoLoader:
-                  aboutInfoLoader ??
-                  () async => const AboutInfo(
-                    appVersion: '1.0.0',
-                    coreVersion: 'core-1.0.0',
-                  ),
+              aboutInfoLoader: aboutInfoLoader,
             ),
           ),
         ),
@@ -52,7 +47,11 @@ void main() {
   testWidgets('opens and closes the about dialog from settings', (
     WidgetTester tester,
   ) async {
-    await pumpConfigPage(tester);
+    await pumpConfigPage(
+      tester,
+      aboutInfoLoader: () async =>
+          const AboutInfo(appVersion: '1.0.0', coreVersion: 'core-1.0.0'),
+    );
 
     expect(find.text('About'), findsOneWidget);
 
@@ -140,7 +139,19 @@ void main() {
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Unavailable'), findsNWidgets(2));
+    final l10n = AppLocalizations.of(tester.element(find.byType(AlertDialog)))!;
+    expect(find.text(l10n.aboutVersionUnavailable), findsNWidgets(2));
+  });
+
+  testWidgets('uses production about loader when no override is provided', (
+    WidgetTester tester,
+  ) async {
+    await pumpConfigPage(tester);
+
+    await tester.tap(find.text('About'));
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
   testWidgets('launches both official links from the about dialog', (
@@ -150,6 +161,8 @@ void main() {
 
     await pumpConfigPage(
       tester,
+      aboutInfoLoader: () async =>
+          const AboutInfo(appVersion: '1.0.0', coreVersion: 'core-1.0.0'),
       launcher: (uri) async {
         launchedUris.add(uri);
         return true;
@@ -176,7 +189,12 @@ void main() {
   testWidgets(
     'shows feedback and keeps the dialog open when link launch fails',
     (WidgetTester tester) async {
-      await pumpConfigPage(tester, launcher: (_) async => false);
+      await pumpConfigPage(
+        tester,
+        aboutInfoLoader: () async =>
+            const AboutInfo(appVersion: '1.0.0', coreVersion: 'core-1.0.0'),
+        launcher: (_) async => false,
+      );
 
       await tester.tap(find.text('About'));
       await tester.pumpAndSettle();
