@@ -4,6 +4,13 @@ import 'package:path/path.dart' as p;
 
 import 'core_service_adapter.dart';
 
+final RegExp _ansiEscapePattern = RegExp(
+  r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])',
+);
+final RegExp _semanticVersionPattern = RegExp(
+  r'(?<!\d)v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)(?!\d)',
+);
+
 class DesktopCoreServiceAdapter implements CoreServiceAdapter {
   final String binaryName;
   final int port;
@@ -19,28 +26,47 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
   });
   String? _lastErrorCode;
 
-  Future<String?> _resolveExePath() async {
-    if (configuredPath != null && configuredPath!.isNotEmpty) {
-      final f = File(configuredPath!);
-      if (await f.exists()) return f.path;
+  bool _isLauncherPath(String path) {
+    final baseName = p.basename(path).toLowerCase();
+    return baseName == 'picoclaw-launcher' ||
+        baseName == 'picoclaw-launcher.exe';
+  }
+
+  String? _extractSemanticVersion(String output) {
+    final sanitized = output
+        .replaceAll('\r', '')
+        .replaceAll(_ansiEscapePattern, '');
+    for (final line in sanitized.split('\n')) {
+      if (!line.toLowerCase().contains('version')) continue;
+      final match = _semanticVersionPattern.firstMatch(line);
+      if (match != null) return match.group(1);
     }
-    final binDir = p.join(Directory.current.path, 'app', 'bin');
-    // Prefer the launcher binary when present (picoclaw-launcher / picoclaw-launcher.exe)
-    final launcherCandidates = [
-      p.join(binDir, 'picoclaw-launcher'),
-      p.join(binDir, 'picoclaw-launcher.exe'),
-    ];
-    for (final cand in launcherCandidates) {
-      if (await File(cand).exists()) return cand;
+    return _semanticVersionPattern.firstMatch(sanitized)?.group(1);
+  }
+
+  Future<String?> _resolveFromDirectory(
+    String dir, {
+    required bool preferLauncher,
+  }) async {
+    if (preferLauncher) {
+      final launcherCandidates = [
+        p.join(dir, 'picoclaw-launcher'),
+        p.join(dir, 'picoclaw-launcher.exe'),
+      ];
+      for (final cand in launcherCandidates) {
+        if (await File(cand).exists()) return cand;
+      }
     }
-    final vfile = File(p.join(binDir, 'version.txt'));
+
+    final vfile = File(p.join(dir, 'version.txt'));
     if (await vfile.exists()) {
-      for (final line in await vfile.readAsLines()) {
+      final lines = await vfile.readAsLines();
+      for (final line in lines) {
         final parts = line.trim().split(RegExp(r'\s+'));
         if (parts.isEmpty) continue;
         final name = parts[0];
         if (name == binaryName) {
-          final cand = p.join(binDir, name);
+          final cand = p.join(dir, name);
           if (await File(cand).exists()) return cand;
         }
       }
@@ -49,98 +75,145 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
           : Platform.isMacOS
           ? 'macos'
           : 'linux';
-      for (final line in await vfile.readAsLines()) {
+      for (final line in lines) {
         final parts = line.trim().split(RegExp(r'\s+'));
         if (parts.isEmpty) continue;
         final name = parts[0].toLowerCase();
         if (name.contains(platformToken)) {
-          final cand = p.join(binDir, parts[0]);
+          final cand = p.join(dir, parts[0]);
           if (await File(cand).exists()) return cand;
         }
       }
     }
-    // If not found relative to the current working directory, attempt to locate
-    // the repository root (by looking for `pubspec.yaml`) and check its `app/bin`.
-    Future<String?> findRepoRoot() async {
-      try {
-        var dir = Directory.current;
-        while (true) {
-          final pub = File(p.join(dir.path, 'pubspec.yaml'));
-          if (await pub.exists()) return dir.path;
-          if (dir.parent.path == dir.path) break;
-          dir = dir.parent;
-        }
-      } catch (_) {}
 
-      try {
-        var dir = Directory(p.dirname(Platform.resolvedExecutable));
-        while (true) {
-          final pub = File(p.join(dir.path, 'pubspec.yaml'));
-          if (await pub.exists()) return dir.path;
-          if (dir.parent.path == dir.path) break;
-          dir = dir.parent;
-        }
-      } catch (_) {}
+    final direct = p.join(dir, binaryName);
+    if (await File(direct).exists()) return direct;
+
+    return null;
+  }
+
+  Future<String?> _resolveConfiguredPath({required bool preferLauncher}) async {
+    if (configuredPath == null || configuredPath!.isEmpty) {
       return null;
     }
 
-    final repoRoot = await findRepoRoot();
-    if (repoRoot != null) {
-      final altBin = p.join(repoRoot, 'app', 'bin');
-      final altV = File(p.join(altBin, 'version.txt'));
-      if (await altV.exists()) {
-        for (final line in await altV.readAsLines()) {
-          final parts = line.trim().split(RegExp(r'\s+'));
-          if (parts.isEmpty) continue;
-          final name = parts[0];
-          if (name == binaryName) {
-            final cand = p.join(altBin, name);
-            if (await File(cand).exists()) return cand;
-          }
-        }
-        final platformToken = Platform.isWindows
-            ? 'windows'
-            : Platform.isMacOS
-            ? 'macos'
-            : 'linux';
-        for (final line in await altV.readAsLines()) {
-          final parts = line.trim().split(RegExp(r'\s+'));
-          if (parts.isEmpty) continue;
-          final name = parts[0].toLowerCase();
-          if (name.contains(platformToken)) {
-            final cand = p.join(altBin, parts[0]);
-            if (await File(cand).exists()) return cand;
-          }
-        }
-      }
-      // Also prefer launcher in altBin
-      final altLauncher1 = p.join(altBin, 'picoclaw-launcher');
-      final altLauncher2 = p.join(altBin, 'picoclaw-launcher.exe');
-      if (await File(altLauncher1).exists()) return altLauncher1;
-      if (await File(altLauncher2).exists()) return altLauncher2;
-      final direct = p.join(altBin, binaryName);
-      if (await File(direct).exists()) return direct;
+    final configuredFile = File(configuredPath!);
+    if (!await configuredFile.exists()) {
+      return null;
     }
+
+    if (preferLauncher || !_isLauncherPath(configuredFile.path)) {
+      return configuredFile.path;
+    }
+
+    return _resolveFromDirectory(
+      configuredFile.parent.path,
+      preferLauncher: false,
+    );
+  }
+
+  Future<String?> _resolveCoreExePath() async {
+    final configured = await _resolveConfiguredPath(preferLauncher: false);
+    if (configured != null) return configured;
+
+    final binDir = p.join(Directory.current.path, 'app', 'bin');
+    final fromBinDir = await _resolveFromDirectory(
+      binDir,
+      preferLauncher: false,
+    );
+    if (fromBinDir != null) return fromBinDir;
+
+    final repoRoot = await _findRepoRoot();
+    if (repoRoot != null) {
+      final fromRepoBin = await _resolveFromDirectory(
+        p.join(repoRoot, 'app', 'bin'),
+        preferLauncher: false,
+      );
+      if (fromRepoBin != null) return fromRepoBin;
+    }
+
     final exeDir = p.dirname(Platform.resolvedExecutable);
-    // Check for launcher in exeDir first
-    final cLauncher1 = p.join(exeDir, 'picoclaw-launcher');
-    final cLauncher2 = p.join(exeDir, 'picoclaw-launcher.exe');
-    if (await File(cLauncher1).exists()) return cLauncher1;
-    if (await File(cLauncher2).exists()) return cLauncher2;
-    final c1 = p.join(exeDir, binaryName);
-    if (await File(c1).exists()) return c1;
-    final c2 = p.join(exeDir, 'bin', binaryName);
-    if (await File(c2).exists()) return c2;
+    final fromExeDir = await _resolveFromDirectory(
+      exeDir,
+      preferLauncher: false,
+    );
+    if (fromExeDir != null) return fromExeDir;
+
+    final fromNestedExeDir = await _resolveFromDirectory(
+      p.join(exeDir, 'bin'),
+      preferLauncher: false,
+    );
+    if (fromNestedExeDir != null) return fromNestedExeDir;
 
     final pathEnv = Platform.environment['PATH'] ?? '';
     for (final dir in pathEnv.split(Platform.isWindows ? ';' : ':')) {
-      final pLauncher = p.join(
-        dir,
-        Platform.isWindows ? 'picoclaw-launcher.exe' : 'picoclaw-launcher',
+      final resolved = await _resolveFromDirectory(dir, preferLauncher: false);
+      if (resolved != null) return resolved;
+    }
+
+    return null;
+  }
+
+  Future<String?> _findRepoRoot() async {
+    try {
+      var dir = Directory.current;
+      while (true) {
+        final pub = File(p.join(dir.path, 'pubspec.yaml'));
+        if (await pub.exists()) return dir.path;
+        if (dir.parent.path == dir.path) break;
+        dir = dir.parent;
+      }
+    } catch (_) {}
+
+    try {
+      var dir = Directory(p.dirname(Platform.resolvedExecutable));
+      while (true) {
+        final pub = File(p.join(dir.path, 'pubspec.yaml'));
+        if (await pub.exists()) return dir.path;
+        if (dir.parent.path == dir.path) break;
+        dir = dir.parent;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<String?> _resolveExePath() async {
+    final configured = await _resolveConfiguredPath(preferLauncher: true);
+    if (configured != null) return configured;
+
+    final binDir = p.join(Directory.current.path, 'app', 'bin');
+    final fromBinDir = await _resolveFromDirectory(
+      binDir,
+      preferLauncher: true,
+    );
+    if (fromBinDir != null) return fromBinDir;
+
+    final repoRoot = await _findRepoRoot();
+    if (repoRoot != null) {
+      final fromRepoBin = await _resolveFromDirectory(
+        p.join(repoRoot, 'app', 'bin'),
+        preferLauncher: true,
       );
-      if (await File(pLauncher).exists()) return pLauncher;
-      final pth = p.join(dir, binaryName);
-      if (await File(pth).exists()) return pth;
+      if (fromRepoBin != null) return fromRepoBin;
+    }
+
+    final exeDir = p.dirname(Platform.resolvedExecutable);
+    final fromExeDir = await _resolveFromDirectory(
+      exeDir,
+      preferLauncher: true,
+    );
+    if (fromExeDir != null) return fromExeDir;
+
+    final fromNestedExeDir = await _resolveFromDirectory(
+      p.join(exeDir, 'bin'),
+      preferLauncher: true,
+    );
+    if (fromNestedExeDir != null) return fromNestedExeDir;
+
+    final pathEnv = Platform.environment['PATH'] ?? '';
+    for (final dir in pathEnv.split(Platform.isWindows ? ';' : ':')) {
+      final resolved = await _resolveFromDirectory(dir, preferLauncher: true);
+      if (resolved != null) return resolved;
     }
     return null;
   }
@@ -321,7 +394,7 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
 
   @override
   Future<String> getCoreVersion() async {
-    final exe = await _resolveExePath();
+    final exe = await _resolveCoreExePath();
     if (exe == null) return 'unknown';
 
     try {
@@ -334,7 +407,7 @@ class DesktopCoreServiceAdapter implements CoreServiceAdapter {
 
       final output = result.stdout.toString().trim();
       if (output.isEmpty) return 'unknown';
-      return output.split('\n').first.trim();
+      return _extractSemanticVersion(output) ?? 'unknown';
     } catch (_) {
       return 'unknown';
     }

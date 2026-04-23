@@ -26,6 +26,10 @@ class PicoClawService : Service() {
         private const val WEB_BINARY_NAME = "libpicoclaw-web.so"
         private const val GATEWAY_PORT = 18790
         private const val WEB_PORT = 18800
+        private val ANSI_ESCAPE_REGEX = Regex("\\u001B(?:[@-Z\\\\-_]|\\[[0-?]*[ -/]*[@-~])")
+        private val SEMANTIC_VERSION_REGEX = Regex(
+            "(?<!\\d)v?(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)(?!\\d)"
+        )
         // 本地 Pico Channel 认证 token（仅用于 loopback 通信）
         const val PICO_TOKEN = "picoclaw-android-local"
 
@@ -137,7 +141,7 @@ class PicoClawService : Service() {
                 val exitCode = process.waitFor()
 
                 if (exitCode == 0 && output.isNotBlank()) {
-                    output.lineSequence().first().trim()
+                    extractSemanticVersion(output) ?: "unknown"
                 } else {
                     "unknown"
                 }
@@ -145,6 +149,24 @@ class PicoClawService : Service() {
                 Log.w(TAG, "getCoreVersion failed: ${e.message}", e)
                 "unknown"
             }
+        }
+
+        private fun extractSemanticVersion(output: String): String? {
+            val sanitized = output
+                .replace("\r", "")
+                .replace(ANSI_ESCAPE_REGEX, "")
+
+            sanitized.lineSequence().forEach { line ->
+                if (!line.contains("version", ignoreCase = true)) {
+                    return@forEach
+                }
+                val match = SEMANTIC_VERSION_REGEX.find(line)
+                if (match != null) {
+                    return match.groupValues[1]
+                }
+            }
+
+            return SEMANTIC_VERSION_REGEX.find(sanitized)?.groupValues?.get(1)
         }
 
         private fun resolveBinaryFile(context: Context, binaryName: String): File {
