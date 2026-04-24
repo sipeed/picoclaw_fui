@@ -129,6 +129,11 @@ class ServiceManager extends ChangeNotifier with WidgetsBindingObserver {
   DeviceTelemetrySnapshot? _lastTelemetrySnapshot;
   final List<StreamSubscription<ProcessSignal>> _signalSubscriptions = [];
 
+  void _syncAdapterConfiguration() {
+    final configuredPath = _binaryPath.trim().isEmpty ? null : _binaryPath;
+    _adapter.setConfiguredPath(configuredPath);
+  }
+
   String? get lastErrorCode => _lastErrorCode ?? _adapter.getLastErrorCode();
   String? get lastDeviceFeedbackSyncMessage => _lastDeviceFeedbackSyncMessage;
   bool get isDeviceFeedbackUploadInProgress =>
@@ -233,6 +238,7 @@ class ServiceManager extends ChangeNotifier with WidgetsBindingObserver {
     _binaryPath = prefs.getString('binaryPath') ?? '';
     _arguments = prefs.getString('arguments') ?? '';
     _publicMode = prefs.getBool('publicMode') ?? false;
+    _syncAdapterConfiguration();
 
     final themeIndex = prefs.getInt('theme_mode') ?? 0;
     _currentThemeMode = AppThemeMode.values[themeIndex];
@@ -501,6 +507,18 @@ class ServiceManager extends ChangeNotifier with WidgetsBindingObserver {
       return countryCode.toLowerCase();
     }
     return _currentLocale.languageCode.toLowerCase();
+  }
+
+  Future<String> getAppVersion() async {
+    if (_cachedAppVersion == 'unknown') {
+      _cachedAppVersion = await _readAppVersion();
+    }
+    return _cachedAppVersion;
+  }
+
+  Future<String> getCoreVersion() async {
+    _syncAdapterConfiguration();
+    return _adapter.getCoreVersion();
   }
 
   Future<String> _readAppVersion() async {
@@ -1073,6 +1091,7 @@ class ServiceManager extends ChangeNotifier with WidgetsBindingObserver {
     }
     if (arguments != null) _arguments = arguments;
     if (publicMode != null) _publicMode = publicMode;
+    _syncAdapterConfiguration();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('host', host);
@@ -1086,6 +1105,7 @@ class ServiceManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<bool> validateBinary([String? path]) async {
+    _syncAdapterConfiguration();
     String? checkPath;
     if (path != null && path.isNotEmpty) {
       checkPath = path;
@@ -1125,6 +1145,7 @@ class ServiceManager extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> start() async {
     if (_status != ServiceStatus.stopped) return;
+    _syncAdapterConfiguration();
 
     _status = ServiceStatus.starting;
     notifyListeners();

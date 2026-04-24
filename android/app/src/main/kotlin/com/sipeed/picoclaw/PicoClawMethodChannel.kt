@@ -69,6 +69,15 @@ class PicoClawMethodChannel(
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
     private val healthChecker = HealthChecker()
 
+    private fun getMainExecutor(): Executor {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            context.mainExecutor
+        } else {
+            val handler = Handler(Looper.getMainLooper())
+            Executor { r -> handler.post(r) }
+        }
+    }
+
     init {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -112,12 +121,7 @@ class PicoClawMethodChannel(
                 }
                 "checkHealth" -> {
                     Thread {
-                        val mainExecutor: Executor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            context.mainExecutor
-                        } else {
-                            val handler = Handler(Looper.getMainLooper())
-                            Executor { r -> handler.post(r) }
-                        }
+                        val mainExecutor = getMainExecutor()
 
                         try {
                             val status = healthChecker.check()
@@ -181,6 +185,22 @@ class PicoClawMethodChannel(
                     } catch (e: Exception) {
                         result.error("GET_AUTO_START_FAILED", e.message, null)
                     }
+                }
+                "getCoreVersion" -> {
+                    Thread {
+                        val mainExecutor = getMainExecutor()
+                        try {
+                            val version = PicoClawService.readCoreVersion(context)
+                            mainExecutor.execute {
+                                result.success(version)
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "getCoreVersion failed: ${e.message}", e)
+                            mainExecutor.execute {
+                                result.success("unknown")
+                            }
+                        }
+                    }.start()
                 }
                 "getConfigPath" -> {
                     val configFile = File(context.filesDir, "picoclaw/config.json")
