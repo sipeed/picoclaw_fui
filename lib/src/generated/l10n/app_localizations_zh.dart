@@ -260,11 +260,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get about => '关于';
 
   @override
-  String get aboutTitle => '关于 PicoClaw Flutter UI';
+  String get aboutDescription => 'PicoClaw 是一个用于管理 PicoClaw 服务的跨平台 Flutter 应用。';
 
   @override
-  String get aboutDescription =>
-      'PicoClaw Flutter UI 是一个用于管理 PicoClaw 服务的跨平台 Flutter 客户端。';
+  String get aboutAppVersionLabel => 'PicoClaw 版本';
+
+  @override
+  String get aboutCoreVersionLabel => 'PicoClaw Core 版本';
+
+  @override
+  String get aboutVersionUnavailable => '不可用';
 
   @override
   String get picoclawOfficial => 'PicoClaw 官网';

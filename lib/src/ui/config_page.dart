@@ -12,7 +12,14 @@ import 'package:remixicon/remixicon.dart';
 const String _githubRepoUrl = 'https://github.com/sipeed/picoclaw_fui';
 const String _picoclawOfficialUrl = 'https://picoclaw.io';
 const String _sipeedOfficialUrl = 'https://sipeed.com';
-const String _aboutProjectName = 'PicoClaw Flutter UI';
+const String _aboutProjectName = 'PicoClaw';
+
+class AboutInfo {
+  const AboutInfo({required this.appVersion, required this.coreVersion});
+
+  final String appVersion;
+  final String coreVersion;
+}
 
 typedef ExternalUrlLauncher = Future<bool> Function(Uri uri);
 
@@ -26,12 +33,14 @@ class ConfigPage extends StatefulWidget {
   /// Called once with the save function, so MainShell can call it later.
   final void Function(Future<void> Function()? saveFn)? onSaveFnReady;
   final ExternalUrlLauncher externalUrlLauncher;
+  final Future<AboutInfo> Function()? aboutInfoLoader;
 
   const ConfigPage({
     super.key,
     this.onDirtyChanged,
     this.onSaveFnReady,
     this.externalUrlLauncher = _defaultExternalUrlLauncher,
+    this.aboutInfoLoader,
   });
 
   @override
@@ -274,13 +283,55 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
     return false;
   }
 
+  Future<AboutInfo> _loadAboutInfo() async {
+    final service = context.read<ServiceManager>();
+    final appVersion = await service.getAppVersion();
+    final coreVersion = await service.getCoreVersion();
+    return AboutInfo(appVersion: appVersion, coreVersion: coreVersion);
+  }
+
+  String _normalizeAboutVersion(String value, AppLocalizations l10n) {
+    final normalized = value.trim();
+    if (normalized.isEmpty || normalized.toLowerCase() == 'unknown') {
+      return l10n.aboutVersionUnavailable;
+    }
+    return normalized;
+  }
+
+  Widget _buildAboutVersionRow(
+    BuildContext context, {
+    required String label,
+    required String value,
+  }) {
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 148,
+            child: Text(
+              label,
+              style: textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value, style: textTheme.bodyMedium)),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showAboutDialog() async {
     final l10n = AppLocalizations.of(context)!;
+    final aboutInfoFuture = widget.aboutInfoLoader?.call() ?? _loadAboutInfo();
 
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.aboutTitle),
+        title: Text(l10n.about),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
           child: Column(
@@ -295,6 +346,40 @@ class ConfigPageState extends State<ConfigPage> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 12),
               Text(l10n.aboutDescription),
+              const SizedBox(height: 16),
+              FutureBuilder<AboutInfo>(
+                future: aboutInfoFuture,
+                builder: (ctx, snapshot) {
+                  if (!snapshot.hasData && !snapshot.hasError) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  final info =
+                      snapshot.data ??
+                      AboutInfo(
+                        appVersion: l10n.aboutVersionUnavailable,
+                        coreVersion: l10n.aboutVersionUnavailable,
+                      );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildAboutVersionRow(
+                        ctx,
+                        label: l10n.aboutAppVersionLabel,
+                        value: _normalizeAboutVersion(info.appVersion, l10n),
+                      ),
+                      _buildAboutVersionRow(
+                        ctx,
+                        label: l10n.aboutCoreVersionLabel,
+                        value: _normalizeAboutVersion(info.coreVersion, l10n),
+                      ),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 autofocus: true,

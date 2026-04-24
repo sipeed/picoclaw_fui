@@ -271,11 +271,17 @@ class AppLocalizationsId extends AppLocalizations {
   String get about => 'Tentang';
 
   @override
-  String get aboutTitle => 'Tentang PicoClaw Flutter UI';
+  String get aboutDescription =>
+      'PicoClaw adalah aplikasi Flutter lintas platform untuk mengelola layanan PicoClaw.';
 
   @override
-  String get aboutDescription =>
-      'Klien Flutter lintas platform untuk mengelola layanan PicoClaw.';
+  String get aboutAppVersionLabel => 'Versi PicoClaw';
+
+  @override
+  String get aboutCoreVersionLabel => 'Versi PicoClaw Core';
+
+  @override
+  String get aboutVersionUnavailable => 'Tidak tersedia';
 
   @override
   String get picoclawOfficial => 'Situs Resmi PicoClaw';

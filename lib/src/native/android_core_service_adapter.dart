@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 
+import '../core/picoclaw_channel.dart';
 import 'core_service_adapter.dart';
 
 class AndroidCoreServiceAdapter implements CoreServiceAdapter {
@@ -73,6 +74,14 @@ class AndroidCoreServiceAdapter implements CoreServiceAdapter {
       return false;
     }
   }
+
+  @override
+  Future<String> getCoreVersion() async {
+    return PicoClawChannel.getCoreVersion();
+  }
+
+  @override
+  void setConfiguredPath(String? path) {}
 
   @override
   String? getLastErrorCode() => _lastErrorCode;

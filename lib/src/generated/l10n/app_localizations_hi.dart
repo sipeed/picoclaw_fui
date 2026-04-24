@@ -269,11 +269,17 @@ class AppLocalizationsHi extends AppLocalizations {
   String get about => 'परिचय';
 
   @override
-  String get aboutTitle => 'PicoClaw Flutter UI के बारे में';
+  String get aboutDescription =>
+      'PicoClaw, PicoClaw सेवा को प्रबंधित करने के लिए एक क्रॉस-प्लेटफ़ॉर्म Flutter ऐप है।';
 
   @override
-  String get aboutDescription =>
-      'PicoClaw सेवा को प्रबंधित करने के लिए एक क्रॉस-प्लेटफ़ॉर्म Flutter क्लाइंट।';
+  String get aboutAppVersionLabel => 'PicoClaw संस्करण';
+
+  @override
+  String get aboutCoreVersionLabel => 'PicoClaw Core संस्करण';
+
+  @override
+  String get aboutVersionUnavailable => 'उपलब्ध नहीं';
 
   @override
   String get picoclawOfficial => 'PicoClaw आधिकारिक साइट';
