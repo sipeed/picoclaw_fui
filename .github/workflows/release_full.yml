@@ -756,6 +756,7 @@ jobs:
 
   upload-tos:
     needs: [publish]
+    if: ${{ !inputs.use_fixed_tag }}
     uses: ./.github/workflows/upload-tos.yml
     with:
       tag: ${{ needs.publish.outputs.release_tag }}
