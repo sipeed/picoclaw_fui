@@ -20,7 +20,7 @@ dependencies:
   flutter_local_notifications: ^21.0.0
   flutter_localizations:
     sdk: flutter
-  google_fonts: any
+  google_fonts: 8.1.0
   intl: any
   local_session_timeout: any
   path_provider: ^2.1.5
