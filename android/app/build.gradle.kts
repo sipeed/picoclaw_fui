@@ -139,7 +139,7 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("androidx.core:core-ktx:1.18.0")
-    implementation("com.umeng.umsdk:common:9.9.1")
+    implementation("com.umeng.umsdk:common:9.9.2")
     implementation("com.umeng.umsdk:asms:1.8.7.2")
     implementation("javax.xml.stream:stax-api:1.0-2")
 }
