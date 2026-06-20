@@ -35,7 +35,7 @@ jobs:
       artifact_suffix: ${{ steps.vars.outputs.artifact_suffix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Sync Flutter version from release tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -232,7 +232,7 @@ jobs:
       release_base: ${{ steps.vars.outputs.release_base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Sync Flutter version from release tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -390,7 +390,7 @@ jobs:
       release_base: ${{ steps.vars.outputs.release_base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Sync Flutter version from release tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -619,7 +619,7 @@ jobs:
       release_base: ${{ steps.vars.outputs.release_base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Sync Flutter version from release tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -791,7 +791,7 @@ jobs:
       release_tag: ${{ steps.set-vars.outputs.release_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download artifacts
         uses: actions/download-artifact@v8
