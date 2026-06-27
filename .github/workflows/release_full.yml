@@ -87,7 +87,7 @@ jobs:
           channel: 'stable'
 
       - name: Cache pub and Gradle
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.pub-cache
@@ -656,7 +656,7 @@ jobs:
             lld binutils libstdc++-12-dev libglu1-mesa
 
       - name: Cache pub
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.pub-cache
