@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.sipeed.picoclaw.PicoClawApp
 import com.sipeed.picoclaw.MainActivity
 import java.io.BufferedReader
@@ -55,7 +56,9 @@ class PicoClawService : Service() {
                 action = ACTION_START
                 putExtra(EXTRA_PUBLIC_MODE, publicMode)
             }
-            context.startForegroundService(intent)
+            // ContextCompat.startForegroundService calls startService on API < 26,
+            // automatically upgrading to startForegroundService on API 26+.
+            ContextCompat.startForegroundService(context, intent)
         }
 
         fun stop(context: Context) {
@@ -623,7 +626,10 @@ class PicoClawService : Service() {
                     thread.start()
                     thread.join(10_000)
 
-                    if (proc.isAlive) {
+                    // Use thread.isAlive() in place of Process.isAlive() which is
+                    // only available on API 26+.  After join() timed out, the
+                    // wait-thread being alive means the process is still running.
+                    if (thread.isAlive()) {
                         Log.w(TAG, "Force killing web service process")
                         proc.destroyForcibly()
                     }
