@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.sipeed.picoclaw.PicoClawApp
 import com.sipeed.picoclaw.MainActivity
 import java.io.BufferedReader
@@ -55,7 +56,9 @@ class PicoClawService : Service() {
                 action = ACTION_START
                 putExtra(EXTRA_PUBLIC_MODE, publicMode)
             }
-            context.startForegroundService(intent)
+            // ContextCompat.startForegroundService calls startService on API < 26,
+            // automatically upgrading to startForegroundService on API 26+.
+            ContextCompat.startForegroundService(context, intent)
         }
 
         fun stop(context: Context) {
@@ -447,10 +450,14 @@ class PicoClawService : Service() {
             "--no-browser"
         )
 
-        // 只有在公共模式开启时才添加 -public 参数
+        // 公共模式：绑定到 0.0.0.0 使其他设备可访问。
+        // 使用 -host 而非 -public：-public 依赖 Go 的 effectivePublic 计算，
+        // 旧版二进制中 flag.Visit 可能检测不到该 flag 导致回退到 localhost。
+        // -host 走 exact binding 路径，更可靠。
         if (publicMode) {
-            cmdList.add("-public")
-            Log.i(TAG, "Public mode enabled, adding -public flag")
+            cmdList.add("-host")
+            cmdList.add("0.0.0.0")
+            Log.i(TAG, "Public mode enabled, binding to 0.0.0.0")
         } else {
             Log.i(TAG, "Public mode disabled, service will listen on localhost only")
         }
@@ -623,7 +630,10 @@ class PicoClawService : Service() {
                     thread.start()
                     thread.join(10_000)
 
-                    if (proc.isAlive) {
+                    // Use thread.isAlive() in place of Process.isAlive() which is
+                    // only available on API 26+.  After join() timed out, the
+                    // wait-thread being alive means the process is still running.
+                    if (thread.isAlive()) {
                         Log.w(TAG, "Force killing web service process")
                         proc.destroyForcibly()
                     }
