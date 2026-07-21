@@ -450,10 +450,14 @@ class PicoClawService : Service() {
             "--no-browser"
         )
 
-        // 只有在公共模式开启时才添加 -public 参数
+        // 公共模式：绑定到 0.0.0.0 使其他设备可访问。
+        // 使用 -host 而非 -public：-public 依赖 Go 的 effectivePublic 计算，
+        // 旧版二进制中 flag.Visit 可能检测不到该 flag 导致回退到 localhost。
+        // -host 走 exact binding 路径，更可靠。
         if (publicMode) {
-            cmdList.add("-public")
-            Log.i(TAG, "Public mode enabled, adding -public flag")
+            cmdList.add("-host")
+            cmdList.add("0.0.0.0")
+            Log.i(TAG, "Public mode enabled, binding to 0.0.0.0")
         } else {
             Log.i(TAG, "Public mode disabled, service will listen on localhost only")
         }
